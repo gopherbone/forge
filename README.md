@@ -1,194 +1,144 @@
-# ▟▙ forge
+# forge
 
-**An agent team that designs 3D-printed mechanisms and proves they'll print before you print them.**
+An experiment in getting Claude agents to design 3D-printable mechanisms, and in checking those designs with real tools before anything is printed. It's built around one printer (a Bambu Lab X1C, 0.4 mm nozzle) and one material (PETG). It runs on macOS.
 
-forge is a design-for-print pipeline tuned for a **Bambu Lab X1C** and **PETG**. Parts are parametric
-[build123d](https://github.com/gumyr/build123d) code. Every claim about a part (it prints without supports, it clears its neighbour, the snap stays under its strain limit, it takes 38 g and 1 h 36 m) comes from a tool that writes a **hash-stamped result**. Agents design, review and simulate. A human signs off on the exact build that gets printed.
+This is a working notebook, not a product. Most of it was built over a couple of days of agent sessions, and only a few designs have been printed so far. Below, things are marked by how we know them:
+- **tested on a print:** someone held the part.
+- **checked by a tool:** a slicer, CAD kernel or solver says so.
+- **untested:** we think it's right but haven't confirmed it.
 
 <p align="center">
-  <img src="docs/media/motion-mutilated-pinion.gif" width="49%" alt="Movement 114, mutilated pinion: motion sweep">
+  <img src="docs/media/motion-mutilated-pinion.gif" width="49%" alt="Movement 114 motion sweep">
   <img src="docs/media/turntable-gator-clip.gif" width="49%" alt="Gator clip turntable">
 </p>
 
-<p align="center"><img src="docs/media/studio-assembly.png" alt="forge studio: live dashboard with the mutilated pinion shuttle"></p>
+## The idea
 
----
+Designs are parametric [build123d](https://github.com/gumyr/build123d) Python. Agents write and revise them. A command-line tool (`forge`) runs a fixed set of checks on every build:
+- printability rules;
+- collisions and clearances;
+- a motion sweep;
+- FEA on the parts that bend;
+- slicing with the real Bambu Studio CLI;
+- a rigid-body physics sim.
 
-## What it's made so far
+Each result is stored against a hash of the design, the spec, the data files and the checking code, so a number from an old build can't be quoted as current. A person reviews a generated report and approves printing in a terminal. forge never talks to the printer.
 
-| | | |
-|:-:|:-:|:-:|
-| <img src="docs/media/hero-jumping-frog.png" alt="Jumping frog"> | <img src="docs/media/hero-gator-clip.png" alt="Gator clip"> | <img src="docs/media/hero-mutilated-pinion.png" alt="Mutilated pinion"> |
-| **Jumping frog**: one part, a printed leaf spring flicks it. 17 min · 7.1 g · peak strain 67% of allowable. *Released.* | **Gator clip**: one-piece compliant clip; an S-meander spring holds the jaws shut. 21 min · 9.7 g · 77% strain. *Released, test print "worked excellently".* | **Movement 114**, mutilated pinion (Brown, *507 Mechanical Movements*, 1868): a 5-of-15-tooth gear shuttles a double-racked frame. 7 parts · 1 h 36 m · 38 g. *Released.* |
-| <img src="docs/media/hero-rack-frame.png" alt="Double rack-frame"> | <img src="docs/media/hero-automaton.png" alt="Frog automaton"> | <img src="docs/media/hero-snapbox.png" alt="Snapbox"> |
-| **Movement 84**, double rack-frame: a bladed cam plus a selector gives forward, reverse or neutral. 6 parts · 1 h 29 m. *In review.* | **Frog automaton**, leapfrog pond + fly catcher: a crank-driven cam stack, 14 snap-together parts. 2 h 05 m · 66 g. *In detail design.* | **Snapbox**: the first example and calibration piece. 2 parts · 48 min · 32 g. |
+What we wanted to find out: can agents produce parts that print well first time, and can the checks catch the problems before plastic does? So far the answer is *partly* (see below).
 
-Every part prints with **zero supports**. Nothing is glued or screwed: retention is by snaps (checked by FEA), captured parts or press fits.
+## What's been printed, and what happened
 
----
+| Design | Printed? | What we learned |
+|---|---|---|
+| <img src="docs/media/hero-snapbox.png" width="200" alt="Snapbox"><br>**Snapbox** (first test) | Yes, an early build | The parts were strong. The 45° chamfers where walls met the bed **curled**. The 0.4 mm snap lip gave **no felt click**; it was indistinguishable from layer lines. Both became rules: walls meet the bed vertically, and snaps need ≥ 1 mm engagement. |
+| <img src="docs/media/hero-gator-clip.png" width="200" alt="Gator clip"><br>**Gator clip** (one-piece compliant clip) | Yes, an earlier revision | "Worked excellently." The 0.9 mm toe notches printed fine; a review agent had predicted they'd be fuzz. The released build has since been polished and **hasn't been printed**. |
+| <img src="docs/media/hero-mutilated-pinion.png" width="200" alt="Movement 114"><br>**Movement 114**, mutilated pinion (Brown, 1868) | Yes | The snap-together assembly was easy and sturdy, and the sliding frame "works very very well". But the crank axle had **a lot of slack**: the gears didn't mesh well, rotation wasn't clean, and the crank worked the front hub loose. See [What 114 taught us](#what-114-taught-us). A v2 is in progress. |
+| <img src="docs/media/hero-jumping-frog.png" width="200" alt="Jumping frog"><br>**Jumping frog** | Released, no feedback yet | Untested. |
+| <img src="docs/media/hero-rack-frame.png" width="200" alt="Rack-frame"><br>**Movement 84**, double rack-frame | No | Took three attempts. The first two were rejected because the mechanism didn't make sense. A quick 2D contact study solved it. In review now. |
+| <img src="docs/media/hero-automaton.png" width="200" alt="Frog automaton"><br>**Frog automaton** (crank-driven cams, 14 parts) | No | Still in detail design. The crank shaft's strength target took most of a day to chase. |
 
-## How it works
+So far no design has gone from agent to finished print with no surprises. The checks did catch many things before printing, including supports, fused gaps, seams on snap roots, collisions and weak snaps. But all three physical problems we've seen (curling chamfers, a snap that didn't click, axle slack) were found by printing, not by the checks. Each one became a new rule or check. That's the main lesson so far.
 
-```mermaid
-flowchart LR
-  B([brief]) --> S[spec.yaml<br/>numbered, testable<br/>requirements]
-  S --> C[concepts A / B<br/>+ critic]
-  C --> D[design.py<br/>build123d]
-  D --> R{{forge run}}
-  R -->|FAIL / WARN| D
-  R --> T[traveller.html<br/>review packet]
-  T -->|human: print gate| X[(release/*.3mf)]
-  X -.->|you print it| P[physical feedback]
-  P -.->|rules, thresholds,<br/>CLAUDE.md| R
-```
+## What the checks do, and how far to trust them
 
-`forge run` is the verification chain. Each stage writes a JSON result bound to the **build hash**. The hash covers the spec, the design, the material and fit data, the calibration and the verification code itself, so a result from a previous build is never quoted as current.
-
-```mermaid
-flowchart LR
-  build --> orient --> check --> fit --> motion --> sim --> orient2[orient<br/>strength-aware] --> slice --> physics --> render --> report
-  classDef v fill:#0f3d3a,stroke:#2bb3a6,color:#e6fffb
-  classDef e fill:#3d2f0f,stroke:#d9a43a,color:#fff6e0
-  class build,check,fit,motion,slice v
-  class sim,physics e
-```
-
-| Stage | Tool | What it proves | Evidence |
+| Check | How | What it's been tested against | Trust it for |
 |---|---|---|---|
-| **build** | build123d / OpenCascade | valid closed solids; STEP + STL | verified |
-| **orient** | trimesh + FEA stress field | best print pose by support area, height, bed contact, show faces and **strength across layers** | verified / estimated |
-| **check** | trimesh, shapely, B-rep features | manifold, bed fit, supports, anchored bridges, walls, islands, adhesion, plus the FDM footguns below | verified / measured / heuristic |
-| **fit** | OpenCascade B-rep | no collisions; every declared fit has its clearance at the tightest point; retention is declared | verified |
-| **motion** | parametric pose sweep | the mechanism moves through its range with no collisions, measured travel, and drive pairs that really engage | verified |
-| **sim** | gmsh tet10 → CalculiX C3D10 | static safety factor (XY vs Z strength), **large-deflection flexures and snap fits** (force-deflection, strain vs allowance), mesh convergence | estimated |
-| **slice** | Bambu Studio CLI | it really slices with *your* flattened presets (G-code header checked); time, grams, support grams, seams | verified |
-| **physics** | MuJoCo | joints, driver and contacts inferred from the sweep; follower lift-off vs crank speed | estimated |
-| **report** | — | one self-contained traveller: renders, evidence ledger, load cases, plates, journal | — |
+| **Slicing** | Bambu Studio CLI with flattened presets; the G-code header is checked against what was asked for | Real slicer output. Times and grams are Bambu's estimates. | Print time, filament, support, whether it slices at all, where seams land |
+| **Printability** | Geometry rules on the mesh and B-rep: overhangs, bridges, thin walls, islands, horizontal holes, upright pins, thin gaps that fuse, and more | Every rule has a known-bad fixture that must fail (`tests/test_checks_fail.py`). Thresholds come from rules of thumb and two test prints. | Catching known FDM mistakes. It knows nothing it hasn't been told. |
+| **Fits and collisions** | Exact B-rep distances, at nominal geometry, over a motion sweep | Geometry only | Parts not colliding at nominal size. **It doesn't model print tolerance or play.** Movement 114 passed with about 1 mm of possible axle play. Fit clearances are **uncalibrated** defaults. |
+| **Motion sweep** | Rebuilds the design at each step of a parameter (e.g. crank angle) | — | Collisions along the motion the design *asserts*. It doesn't prove the contacts would produce that motion: rack-frame v2 passed 72 poses and was still wrong. |
+| **FEA** | gmsh + CalculiX, nonlinear for snaps and flexures, with a mesh-convergence pass | Beam theory (1.3% off in the measured run; the test fails above 4%), and force control against displacement control. **Never compared with forces measured on a print.** PETG material data is low-confidence. | Comparing designs and spotting weak spots. Treat absolute forces and safety factors as estimates. The 5–15 N "felt click" target is a guess that hasn't been confirmed yet. |
+| **Physics** | MuJoCo, with joints and contacts inferred from the motion sweep | One validation: cam-follower lift-off against e·ω² = g | Intuition about cam followers. Gear and rack teeth jam in it, so those drives fall back to following the sweep (labelled in the UI). Not a verdict on anything. |
+| **Strength-aware orientation** | Scores print orientations using the FEA stress field | Disagreed with the FEA safety factor on movement 114, not yet investigated | A suggestion only |
 
-**Evidence kinds are never mixed up.** *Verified* means a geometric or slicer fact. *Measured* means sampled geometry. *Heuristic* is a rule of thumb. *Estimated* covers FEA and material data. The traveller labels every number with its kind.
+## Things we think will help but haven't tested
 
-### The checks know FDM's footguns
-Every check has a **known-bad fixture that must fail** (`tests/test_checks_fail.py`). Many come straight from failed test prints:
-
-- **Rounds or chamfers where walls meet the plate.** Banned after 45° bed chamfers curled on a test print. Walls meet the plate vertically.
-- **Horizontal round holes** (the crown droops), **pins printed upright** (they snap along layers), small vertical holes, and holes through the first layer.
-- **Thin gaps under a ceiling** (`z_fuse`): the bridge sags and welds a snap finger to its skin.
-- **Sharp vertical corners** on large footprints (they lift and warp), slender towers, and PETG stringing across scattered islands.
-- **Rounded surfaces facing up** (stair-stepping) and anything that needs supports.
-
-<p align="center">
-  <img src="docs/media/overhang-gator.png" width="49%" alt="Overhang map of the gator clip in print orientation">
-  <img src="docs/media/traveller.png" width="49%" alt="The traveller review packet">
-</p>
-
----
-
-## Simulation you can trust (and know when not to)
-
-<p align="center">
-  <img src="docs/media/fea-gator-open.png" width="62%" alt="FEA strain map of the gator clip's S-meander spring, opened">
-  <img src="docs/media/curve-gator-open.png" width="36%" alt="Force-deflection curve of the gator clip opening">
-</p>
-
-- **FEA:** gmsh quadratic tets and CalculiX with **NLGEOM**, for flexures and snap fits.
-  - **Validation:** against Timoshenko beam theory: 1.3% off when measured, and the test fails above 4%. Displacement control agrees with force control on the same load within 8% (`tests/test_fea_validation.py`).
-  - **Loading:** snap lips are loaded on a thin line through a distributing coupling. Loading the whole face locks the tip's rotation and overstates the strain about 2×.
-  - **Reported numbers:** the headline excludes nodes that are fixed or under the load, and every case gets a **mesh-convergence pass**. A change over 10% is flagged.
-  - **Anisotropy:** strength and strain limits differ in-layer vs across-layer (×0.6 across), with separate limits for one-time and repeated use.
-- **Physics:** MuJoCo infers joints and contacts from the motion sweep and is validated against e·ω² = g. It refuses to claim a result outside its validated envelope (gravity-returned followers, driver not stalled).
-- **Ground truth beats simulation.** A 0.4 mm snap lip that simulated fine gave *no felt click*. The rule is now ≥ 1 mm engagement and 5–15 N.
-
-<p align="center"><img src="docs/media/fea-pinion-crank.png" width="70%" alt="FEA: crank push on the mutilated pinion's crank"></p>
-
-### Sketch first: mechanisms solved in 2D before CAD
-The double rack-frame went round twice in 3D before its drive was solved by a quick **2D contact study**. It runs shapely profiles of the real blade, a push-only frame and three tolerance depths, and shows exactly one 6 mm tooth per blade at every depth. A pitch of 5 mm or less runs away. The mechanism is now worked out on paper before anyone writes `design.py`.
+- **Axle rules from the 114 print.** Measured in the design's own geometry, the crank's flatted shaft could lift 0.7–1.8 mm in its pointed-roof bearing hole and tilt about 6° on a short bearing. That's comparable to the tooth depth. The proposed rules:
+  - shafts round wherever they turn;
+  - bearings printed with the hole axis vertical (as the sliding frame's holes were, and that part worked);
+  - bearings at least 1.5× the shaft diameter long;
+  - shoulders on both sides of the bearing.
+  
+  The v2 isn't printed yet.
+- **Seam placement.** `seam_position: back`, checked in the G-code, keeps seams off snap roots. Whether that matters physically is untested. Also, "back" is relative to the plate, and the slicer sometimes rotates parts, so always check the G-code.
+- **Sketch before CAD.** A retrospective of the build log ([`docs/pipeline-review.html`](docs/pipeline-review.html)) found that projects whose mechanism or spring was worked out on paper first went quickly, and the ones that weren't took longest. It proposes 2D mechanism studies and quick hand-calculation checks before detailed CAD. None of that is built yet.
+- **Clearance calibration.** `forge coupon` makes a test print for calibrating fit clearances. It hasn't been printed.
 
 <p align="center"><img src="docs/media/sketch-rack-drive.png" alt="2D contact study of the movement 84 drive at three engagement depths"></p>
+<p align="center"><sub>The 2D study that solved the rack-frame drive: frame travel against crank angle at three engagement depths. A checked result, not a printed one.</sub></p>
 
----
-
-## forge studio: watch the agents work
-
-`forge studio` is a live dashboard. Every save of a `design.py` hot-reloads a geometry preview, and a badge always says whether you're looking at an **unverified live preview** or a **verified build**.
-
-| Assembly, exploded | Print plate (read back from the sliced 3MF) |
-|:-:|:-:|
-| <img src="docs/media/studio-explode.png" alt="Exploded view of the frog automaton"> | <img src="docs/media/studio-plate.png" alt="Plate view of the mutilated pinion parts"> |
-
-**Live physics.** MuJoCo runs in real time in the dashboard. Drag the crank dial, set a motor speed, or grab any moving part and poke it. Chips show whether each follower is riding its cam or airborne.
-
-<p align="center"><img src="docs/media/studio-physics.png" alt="Live MuJoCo physics of the frog automaton"></p>
-
-Other features:
-- **Parts:** click to isolate one, ghost the rest, explode the assembly, and see each part's warnings.
-- **Motion sweeps:** play them back, scrub through them, or deep-link (`?mode=plate|physics&explode=0-100#project`).
-
----
-
-## Human oversight
-
-- **One mandatory gate: print.**
-  - `forge approve <p> print` runs only in an interactive terminal and asks you to type the project name. It's a guard rail an agent's shell can't pass by accident. Optional deny rules are in `docs/claude-settings.proposed.json`.
-  - The approval binds to the build hash, so any later edit invalidates it.
-  - Spec and concept choices are made in conversation and logged.
-- **Journal.** Every decision, failure, root cause and human comment is timestamped in `projects/<p>/journal.md`, with human comments in their own words.
-- **Traveller.** `build/traveller.html` is the review packet. Agents publish it so you can comment on it.
-- **Release.** `forge release` copies the approved 3MFs to `release/`. **forge never talks to the printer.**
-
-### Faithful to the source
-Historical movements are checked against the engraving, not just against the spec.
-
-<p align="center">
-  <img src="docs/media/brown-1868-114.png" width="38%" alt="Brown 1868, movement 114 engraving">
-  <img src="docs/media/hero-mutilated-pinion.png" width="58%" alt="forge model of movement 114">
-</p>
-
----
-
-## The team
-
-Agents live in `.claude/agents/`, and the workflow is the `/forge` skill (`.claude/skills/forge/SKILL.md`).
+## How it's put together
 
 ```mermaid
-flowchart TB
-  L[lead<br/>orchestrates, asks the human,<br/>never approves]:::lead
-  L --> DZ[forge-designer<br/>edits design.py]
-  L --> PE[forge-print-engineer<br/>printability + G-code review<br/>read-only]
-  L --> SE[forge-sim-engineer<br/>load cases + FEA trust]
-  L --> CR[forge-critic<br/>looks, proportion, finish<br/>read-only]
-  PE -. findings .-> L
-  SE -. findings .-> L
-  CR -. findings .-> L
-  L == one consolidated change list ==> DZ
-  classDef lead fill:#123,stroke:#2bb3a6,color:#fff
+flowchart LR
+  B([brief]) --> S[spec.yaml<br/>requirements]
+  S --> D[design.py<br/>build123d]
+  D --> R{{forge run}}
+  R -->|problems| D
+  R --> T[traveller.html<br/>review report]
+  T -->|person approves in a terminal| X[(release/*.3mf)]
+  X -.->|print it| P[what actually happened]
+  P -.->|new rules| R
 ```
 
-Start a design in Claude Code with:
+`forge run` runs these stages, each writing a result tied to the build hash:
 
-```text
-/forge my-thing a wall bracket for a 30 mm pipe
+```mermaid
+flowchart LR
+  build --> orient --> check --> fit --> motion --> sim --> slice --> physics --> render --> report
 ```
 
----
+There are four agent roles, defined in `.claude/agents/`, plus a lead (the main Claude session) that coordinates them and asks the human questions:
+- a designer that edits the geometry;
+- a print engineer and a simulation engineer that review and suggest but don't edit;
+- a critic that judges the renders.
 
-## Quick start
+The workflow is the `/forge` skill in `.claude/skills/forge/SKILL.md`. Everything the agents decide goes in a per-project `journal.md`, along with the human's comments in their own words. Those journals are the best record of what actually happened, including the dead ends.
+
+**One approval gate.** `forge approve <project> print` only runs in an interactive terminal and asks you to type the project name. That stops agents' shells from approving by accident; it isn't a security boundary. The approval is tied to the build hash, so any later change voids it.
+
+<p align="center">
+  <img src="docs/media/fea-gator-open.png" width="60%" alt="FEA strain in the gator clip's spring">
+  <img src="docs/media/traveller.png" width="38%" alt="Review report">
+</p>
+
+## forge studio
+
+`forge studio` is a local web dashboard (port 8765) for watching the agents work. It hot-reloads a preview whenever a `design.py` is saved, and it labels unverified previews differently from checked builds.
+- **Inspect:** click a part to isolate it, or explode the assembly.
+- **Motion:** play the motion sweep.
+- **Plate:** see parts as they sit on the print plate (read back from the slicer's 3MF).
+- **Physics:** turn the crank or poke parts in a live MuJoCo sim.
+
+| Assembly (exploded) | Print plate |
+|:-:|:-:|
+| <img src="docs/media/studio-explode.png" alt="Exploded frog automaton"> | <img src="docs/media/studio-plate.png" alt="Plate view"> |
+
+<p align="center"><img src="docs/media/studio-physics.png" width="80%" alt="Live physics"></p>
+
+The live physics is for getting a feel for a mechanism, not for proving it. Contact physics works for the cam-driven automaton. Gear and rack drives jam on convex collision shapes, so for those the follower is tied to the crank through the verified motion sweep, with a little slack.
+
+## Running it
 
 ```bash
 make setup                          # python3.12 venv, deps, CalculiX
-.venv/bin/forge doctor              # toolchain + flattened X1C presets
-.venv/bin/forge run snapbox         # the example, end to end
-.venv/bin/forge open snapbox        # the traveller
-.venv/bin/forge studio              # live dashboard → http://127.0.0.1:8765
-make test                           # FEA validation + known-bad fixtures
+.venv/bin/forge doctor              # checks the toolchain and printer presets
+.venv/bin/forge run snapbox         # the example project, end to end
+.venv/bin/forge open snapbox        # open its report
+.venv/bin/forge studio              # dashboard at http://127.0.0.1:8765
+make test                           # FEA validation and known-bad fixtures
 ```
 
-**Requirements:**
-- macOS with Bambu Studio installed (its CLI does the slicing).
-- Python 3.12.
-- FreeCAD.app: `make tools` copies its CalculiX `ccx` and fixes the libgfortran rpath.
+You'll need:
+- macOS;
+- Bambu Studio, for its CLI;
+- Python 3.12;
+- FreeCAD.app, because `make tools` borrows its CalculiX binary and fixes a library path.
+
+It's tuned for an X1C with PETG on a textured PEI plate; change that in a project's `spec.yaml` under `printer:`. In Claude Code, start a design with `/forge <name> <brief>`.
 
 <details>
-<summary><b>All commands</b></summary>
+<summary>All commands</summary>
 
 ```text
 forge doctor | list | new <p> | build | orient | check | fit | sim [--case] [--fast]
@@ -202,28 +152,26 @@ forge release <p>
 </details>
 
 <details>
-<summary><b>Hard-won facts</b> (things that cost a debugging session each)</summary>
+<summary>Things that each cost a debugging session</summary>
 
-- **Bambu Studio CLI:**
-  - It does **not** resolve preset `inherits`: a raw system preset slices with a 200×200×100 bed, PLA and 0 g. forge flattens the presets, sets `from: system`, and checks the G-code header.
-  - Seam position is relative to the **plate**, and arrange may rotate the part. On the gator clip, `back` put 43 seams in the mouth. Always verify seams in the G-code.
-- **FEA:**
-  - gmsh tet10 to CalculiX C3D10 needs the last two edge nodes swapped.
-  - Use `*NODE FILE, FREQUENCY=100000`: writing every NLGEOM increment made 430 MB `.frd` files.
-- **MuJoCo:** needs dt 0.1 ms with a 2 ms contact; coarser steps chatter and fake early jumps. Don't cap hull vertices: faceted cams kick followers.
+- **Bambu Studio CLI:** it ignores preset `inherits`. A raw system preset slices with a 200×200×100 bed, PLA and 0 g. forge flattens the presets itself and checks the G-code header.
+- **gmsh to CalculiX:** quadratic tets need two edge nodes swapped.
+- **CalculiX output:** writing every nonlinear increment made 430 MB result files; write only the final step.
+- **Snap-fit FEA:** loading the whole lip face over-stiffens a snap about 2×. Load a thin line instead.
+- **MuJoCo:** needs a 0.1 ms step to stop contact chatter. Capping hull vertices makes faceted cams kick followers.
 
-See [`CLAUDE.md`](CLAUDE.md) for the full list.
+More in [`CLAUDE.md`](CLAUDE.md), which is also the agents' standing instructions.
 </details>
 
-## Calibrate your printer
-Fit clearances ship as uncalibrated defaults. Generate the coupon with `forge coupon`, run it through `forge run _coupon`, and print it. Then record what worked with `forge calibrate --press .. --snug .. --sliding .. --loose ..`.
+## Known limitations
 
-## Honest limits
-
-- **Material data:** PETG data is low-confidence (sources disagree by about 2× on modulus), so forge uses the conservative values.
-- **FEA assumptions:** stiffness is treated as isotropic, parts as solid (no infill), and creep, fatigue and contact are ignored.
-- **Physics coverage:** MuJoCo isn't valid for gear and rack trains, and says so.
-- **Human judgement:** fit *feel* and aesthetics stay with you. That's what the print gate and the test prints are for.
+- Only one printer, one material and two-ish physical test prints. The rules reflect that.
+- Fit clearances are uncalibrated.
+- FEA treats parts as solid and isotropic in stiffness. It ignores infill, creep, fatigue and contact.
+- Physics doesn't model teeth.
+- The agents are slow on hard mechanisms: the automaton has taken well over a day of agent time. Simulation runs sometimes time out when several projects run at once.
+- Feel, fit and looks are still judged by a person holding the part.
 
 ## License
+
 [MIT](LICENSE). The 1868 engravings in `projects/*/reference/` are from Henry T. Brown's *507 Mechanical Movements* and are in the public domain.

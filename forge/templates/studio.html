@@ -201,7 +201,14 @@ $('#play').onclick=()=>{motion.playing=!motion.playing; $('#play').textContent=m
 $('#scrub').oninput=e=>{motion.u=e.target.value/1000; motion.playing=false; $('#play').textContent='▶'; applyMotion(motion.u);};
 (function loop(now){ requestAnimationFrame(loop);
  if(motion.playing&&motion.poses.length){ const dt=(now-motion.last)/1000; motion.last=now; motion.u=(motion.u+dt*(+$('#speed').value)/(motion.poses.length*0.12))%1; applyMotion(motion.u);}
+ try{ if(mode==='physics'&&live.buf.length) applyLive(now); }catch(e){}  // mode/live are declared further down (TDZ on the first frames)
  ctl.update(); renderer.render(scene,cam); })(performance.now());
+// snapshot interpolation: show the sim ~50 ms in the past, blending the two frames around that time
+function applyLive(now){ const b=live.buf, ts=(now-live.off-50)/1000; let i=b.length-1; while(i>0&&b[i-1].t>ts) i--;
+ const B=b[i], A=b[Math.max(i-1,0)]; const a=(B.t>A.t)?Math.min(Math.max((ts-A.t)/(B.t-A.t),0),1):1;
+ for(const n in B.mats){ const m=meshes[n]; if(!m) continue; const MA=A.mats[n]||B.mats[n];
+  MA.decompose(_lp,_lq,_ls); B.mats[n].decompose(_lp2,_lq2,_ls); _lp.lerp(_lp2,a); _lq.slerp(_lq2,a); m.base.compose(_lp,_lq,_ls.set(1,1,1)); place(m); } }
+const _lp=new THREE.Vector3(),_lp2=new THREE.Vector3(),_lq=new THREE.Quaternion(),_lq2=new THREE.Quaternion(),_ls=new THREE.Vector3();
 // ---------- modes: assembly / plate / physics ----------
 let mode='assembly';
 const plateGroup=new THREE.Group(); scene.add(plateGroup); plateGroup.visible=false;
@@ -227,23 +234,27 @@ async function showPlate(i){ plateGroup.clear(); plateMeshes={}; const p=plates[
 $('#platesel').onchange=e=>showPlate(+e.target.value);
 // ---------- live physics ----------
 function restoreStatic(){ (state?.parts||[]).forEach(p=>{ const m=meshes[p.name]; if(m){ m.base.set(...p.M); place(m);} }); }
-let live={es:null,info:null,frame:null,crank:0,drag:null,poke:null,lastSend:0,staticBase:{}};
+let live={buf:[],off:null,es:null,info:null,frame:null,crank:0,drag:null,poke:null,lastSend:0,staticBase:{}};
 for(let i=0;i<24;i++){const a=i/24*2*Math.PI, r1=40, r2=i%6?37:33; const l=document.createElementNS('http://www.w3.org/2000/svg','line');
  l.setAttribute('x1',50+r1*Math.sin(a)); l.setAttribute('y1',50-r1*Math.cos(a)); l.setAttribute('x2',50+r2*Math.sin(a)); l.setAttribute('y2',50-r2*Math.cos(a)); l.setAttribute('class','tick'); $('#ticks').appendChild(l);}
 function post(msg){ if(!cur) return; fetch(`/api/live/${cur}/control`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(msg)}); }
 function dialTo(deg){ const a=deg*Math.PI/180; const x=50+36*Math.sin(a), y=50-36*Math.cos(a); $('#dialarm').setAttribute('x2',x); $('#dialarm').setAttribute('y2',y); $('#dialknob').setAttribute('cx',x); $('#dialknob').setAttribute('cy',y); }
 async function startLive(){ stopLive(); if(!cur) return; $('#livepill').textContent='● LOADING PHYSICS…'; $('#livepill').style.color='var(--warn)';
  const info=await (await fetch(`/api/live/${cur}/info`)).json(); live.info=info;
- if(info.error){ $('#livepill').textContent='● PHYSICS UNAVAILABLE'; $('#livepill').style.color='var(--fail)'; $('#lrt').textContent=info.error.slice(0,160); return; }
+ if(info.error){ const noMech=/motion sweep/.test(info.error);
+  $('#livepill').textContent=noMech?'● NO MECHANISM TO SIMULATE':'● PHYSICS UNAVAILABLE'; $('#livepill').style.color=noMech?'var(--muted)':'var(--fail)';
+  $('#lrt').textContent=noMech?'This design has no verified motion sweep (no crank-driven Motion), so there is nothing for MuJoCo to drive. Add a Motion to design.py and run forge fit.':info.error.slice(0,160); return; }
  $('#ljump').textContent=info.jump_rpm?`frogs lift off above ~${info.jump_rpm} rpm (scan)`:(info.scan&&info.scan.length?'no lift-off in scan':'');
  $('#lchips').innerHTML=(info.followers||[]).map(f=>`<span class="chip" data-f="${esc(f)}">${esc(f)}</span>`).join('');
- live.es=new EventSource(`/api/live/${cur}/stream`);
+ live.buf=[]; live.off=null; live.es=new EventSource(`/api/live/${cur}/stream`);
  live.es.onmessage=e=>{ const fr=JSON.parse(e.data); if(fr.error) return; live.frame=fr;
   $('#livepill').textContent='● LIVE · MuJoCo'; $('#livepill').style.color='var(--pass)';
   $('#lrt').textContent=`${fr.realtime}× real time${info.stale?' · sweep is stale (last verified build)':''}`;
-  for(const [n,M] of Object.entries(fr.M)){ const m=meshes[n]; if(m){ m.base.set(...M); place(m);} }
+  fr.at=performance.now(); fr.mats={}; for(const [n,M] of Object.entries(fr.M)) fr.mats[n]=new THREE.Matrix4().set(...M);
+  live.buf.push(fr); if(live.buf.length>8) live.buf.shift(); const off=fr.at-fr.t*1000; live.off=(live.off==null||off<live.off)?off:live.off+0.02*(off-live.off);
   $('#lrpm').textContent=Math.round(fr.rpm); $('#ltq').textContent=fr.torque_nmm.toFixed(1);
-  document.querySelectorAll('#lchips .chip').forEach(c=>{const air=fr.airborne[c.dataset.f]; c.classList.toggle('air',air); c.textContent=`${c.dataset.f} · ${air?'airborne':'on cam'}`;});
+  document.querySelectorAll('#lchips .chip').forEach(c=>{const air=fr.airborne[c.dataset.f]; c.classList.toggle('air',air); c.textContent=fr.mode==='coupled'?`${c.dataset.f} · geared (sweep)`:`${c.dataset.f} · ${air?'airborne':'on cam'}`;});
+  $('#livepill').textContent=fr.mode==='coupled'?'● LIVE · MuJoCo · tooth drive coupled from the verified sweep':'● LIVE · MuJoCo';
   if(!live.drag){ live.crank=fr.angle; dialTo(fr.angle); } };
  live.es.onerror=()=>{ $('#livepill').textContent='● RECONNECTING'; $('#livepill').style.color='var(--warn)'; }; }
 function stopLive(){ if(live.es){ live.es.close(); live.es=null; } }
@@ -255,8 +266,8 @@ function dialAngle(e){ const r=$('#dial').getBoundingClientRect(); return Math.a
 $('#dial').addEventListener('pointerdown',e=>{ e.preventDefault(); $('#dial').setPointerCapture(e.pointerId); live.drag={prev:dialAngle(e), target:live.crank};
  $('#motor').value=0; $('#motorv').textContent='hand'; });
 $('#dial').addEventListener('pointermove',e=>{ if(!live.drag) return; const a=dialAngle(e); let d=a-live.drag.prev; if(d>180)d-=360; if(d<-180)d+=360; live.drag.prev=a; live.drag.target+=d;
- dialTo(live.drag.target); const now=performance.now(); if(now-live.lastSend>30){ live.lastSend=now; post({mode:'angle',deg:live.drag.target}); } });
-$('#dial').addEventListener('pointerup',()=>{ if(live.drag) post({mode:'angle',deg:live.drag.target}); live.drag=null; });
+ dialTo(live.drag.target); const now=performance.now(); if(now-live.lastSend>16){ live.lastSend=now; post({mode:'angle',deg:live.drag.target}); } });
+$('#dial').addEventListener('pointerup',()=>{ if(live.drag) post({mode:'angle',deg:live.drag.target,release:true}); live.drag=null; });
 // poke: grab a moving part and drag it on a camera-facing plane
 function pokeStart(e){ if(mode!=='physics'||!live.frame) return false; const r=renderer.domElement.getBoundingClientRect();
  ptr.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1); ray.setFromCamera(ptr,cam);

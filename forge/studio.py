@@ -299,7 +299,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({"error": f"{type(e).__name__}: {e}"})
             ph = Project(m.group(1)).result("physics") or {}
-            return self._json({"driver": s.drv, "followers": s.followers, "stale": s.stale,
+            return self._json({"driver": s.drv, "followers": s.followers, "stale": s.stale, "mode": s.mode, "selftest": s.selftest,
                                "bodies": [{"rep": b["rep"], "kind": b["kind"], "parts": b["parts"]} for b in s.model["bodies"]],
                                "jump_rpm": ph.get("jump_rpm"), "scan": ph.get("scan", [])})
         m = re.match(r"^/api/live/([\w.-]+)/stream$", path)
@@ -321,7 +321,7 @@ class Handler(BaseHTTPRequestHandler):
                         seen = s.version
                         self.wfile.write(f"data: {json.dumps(s.frame)}\n\n".encode())
                         self.wfile.flush()
-                    time.sleep(1 / 40)
+                    time.sleep(1 / 120)
             except (BrokenPipeError, ConnectionResetError):
                 return
             return
