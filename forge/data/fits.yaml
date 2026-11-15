@@ -1,0 +1,15 @@
+# Clearance per side (mm) between mating printed parts on the X1C, 0.4 nozzle, 0.20 mm layers.
+# These are starting defaults, NOT calibrated. Run `forge coupon`, print it, and record
+# which gaps actually fit; the result goes to projects/_calibration/fits.yaml and
+# overrides these values.
+calibrated: false
+# Second source, Markforged design tips (DIAMETRAL, i.e. 2x these per-side numbers): press 0-0.05,
+# close 0.05-0.10, free 0.10-0.20 mm. That's tighter than these FDM-generic defaults, and their printers
+# are tuned for it. The coupon decides for the user's X1C.
+fits:
+  press:    {gap: 0.00, note: "Interference/press fit. Needs calibration for your filament."}
+  snug:     {gap: 0.10, note: "Hand-press, no wobble (pins, alignment features)."}
+  sliding:  {gap: 0.20, note: "Slides freely with light friction (lids, drawers)."}
+  loose:    {gap: 0.30, note: "Free rotation (hinge pins, axles)."}
+  print_in_place: {gap: 0.35, note: "Parts printed already assembled."}
+  contact:  {gap: 0.00, note: "Faces rest on each other. Touching is allowed, overlap is not."}

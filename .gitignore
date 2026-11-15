@@ -1,0 +1,12 @@
+.venv/
+.tools/
+__pycache__/
+*.egg-info/
+projects/*/build/
+.pytest_cache/
+.DS_Store
+MUJOCO_LOG.TXT
+/result.json
+# local identity: gate records keep the OS username
+projects/*/approvals.json
+projects/*/release/*.html

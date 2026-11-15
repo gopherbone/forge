@@ -1,0 +1,41 @@
+# Material properties for FDM parts. Every value carries its source and a confidence.
+# FDM parts are anisotropic: "xy" = along the layers, "z" = across layers (layer adhesion).
+# forge uses the CONSERVATIVE end where sources disagree. Replace with your own coupon
+# test data when you have it (and set confidence: measured).
+materials:
+  PETG:
+    preset: "Bambu PETG Basic @BBL X1C"   # Bambu Studio filament preset used for slicing
+    density_g_cm3: 1.25                   # from the Bambu preset (verified: preset file)
+    E_mpa: 1460                           # Young's modulus, xy. Conservative (low) value.
+    E_z_mpa: 1120
+    poisson: 0.38
+    strength_xy_mpa: 48                   # tensile strength along layers
+    strength_z_mpa: 35                    # tensile strength across layers (the weak direction)
+    # Allowable strain for flexures / snap fits (elastic, no permanent set).
+    # Design-guide style estimates for PETG; NOT from a datasheet.
+    strain_allow_once: 0.035              # snap fit assembled once / rarely
+    strain_allow_repeated: 0.020          # living hinge / clip used many times
+    strain_allow_z_factor: 0.6            # strain across layers is limited to this fraction
+    safety_factor_target: 2.0
+    max_service_temp_c: 68                # ~ glass transition (Tg ~ 80 C) minus margin
+    confidence: low
+    sources:
+      - "Bambu PETG Basic TDS V2.0 (via additive-x.com): xy 48+-5 MPa / z 39+-3 MPa, E xy 1460 / z 1120 MPa"
+      - "All3DP report of newer Bambu figures: E xy 2780 / z 2550 MPa, strength xy 51 / z 35 MPa"
+      - "Sources disagree ~2x on modulus. Using the lower modulus and the lower z strength."
+  PLA:
+    preset: "Bambu PLA Matte @BBL X1C"
+    density_g_cm3: 1.32
+    E_mpa: 2600
+    E_z_mpa: 2300
+    poisson: 0.36
+    strength_xy_mpa: 40
+    strength_z_mpa: 25
+    strain_allow_once: 0.015              # PLA is brittle: bad choice for flexures
+    strain_allow_repeated: 0.008
+    strain_allow_z_factor: 0.5
+    safety_factor_target: 2.0
+    max_service_temp_c: 50
+    confidence: low
+    sources:
+      - "Typical FDM PLA values; not checked against a Bambu datasheet. Verify before trusting."

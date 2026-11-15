@@ -1,0 +1,67 @@
+# Snapbox: design spec. The human approves this at the `spec` gate.
+title: Snapbox
+summary: >
+  A small PETG desk box for SD cards and bits. The lid locks on with two cantilever
+  snap hooks that click into windows in the end walls, and opens again by pressing the hooks.
+
+requirements:
+  - id: R1
+    text: "Interior at least 55 x 35 x 24 mm"
+    verify: "human (params: 64-2*2.2 x 44-2*2.2 x 28-2 = 59.6 x 39.6 x 26 mm)"
+  - id: R2
+    text: "Lid slides into the base with a sliding fit on the skirt and does not rattle"
+    verify: fit
+  - id: R3
+    text: "Snap hooks survive repeated opening (hundreds of cycles) without permanent set"
+    verify: "sim:hook_snap"
+  - id: R4
+    text: "Lid carries 40 N pressed at its centre (a hand leaning on it)"
+    verify: "sim:lid_press"
+  - id: R5
+    text: "Both parts print support-free on the X1C in PETG"
+    verify: slice
+  - id: R6
+    text: "Clean outer surfaces: no support scars on walls or lid top"
+    verify: human
+
+loads:
+  - "Opening and closing: each hook arm deflects inward by the lip depth minus the skirt gap, plus 0.1 mm margin"
+  - "40 N pressed on the lid centre, lid resting on the base rim"
+
+material: PETG
+cosmetic: "Outer walls of the base and the lid top. The lid top prints on the textured plate."
+constraints:
+  - "Fits on the X1C plate"
+  - "Support-free"
+
+open_questions:
+  - "Lid top finish: textured PEI (printed face-down, as now) or smooth top surface (face-up, needs the hooks printed sideways)?"
+
+params:
+  width: 64          # outer x
+  depth: 44          # outer y
+  height: 28         # base height
+  wall: 2.2
+  floor: 2.0
+  corner_r: 5.0
+  lid_t: 3.0         # lid plate thickness
+  skirt_h: 18.0      # skirt depth below the lid plate = hook arm length (v2: was 14)
+  skirt_t: 1.4       # skirt and hook-arm thickness
+  slot: 1.0          # slot width either side of a hook arm
+  arm_w: 7.0
+  lip_u: 0.6         # hook lip protrusion beyond the skirt face (v2: was 0.7)
+  root_fillet: 0.4   # arm-to-plate fillet (v2: new)
+  lip_h: 3.5         # flat engagement height of the lip
+  lip_ramp: 2.0      # lead-in ramp height
+  lip_w: 6.0
+  win_w: 8.0         # window width in the base wall
+  win_clear: 0.4     # clearance around the lip inside the window (z)
+  edge_chamfer: 0.6  # bed-side edges, against elephant foot
+  press_n: 40
+
+printer:
+  machine: "Bambu Lab X1 Carbon 0.4 nozzle"
+  process: "0.20mm Standard @BBL X1C"
+  bed_type: "Textured PEI Plate"
+  overrides:
+    wall_loops: 3     # hook arms are 1.4 mm: 3 loops makes them solid, matching the FEA assumption

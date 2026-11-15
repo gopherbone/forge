@@ -1,0 +1,179 @@
+# Double Rack-Frame (Movement 84): design spec. The human approves this at the `spec` gate.
+title: Double Rack-Frame (Movement 84)
+summary: >
+  A working desk model of movement 84 from Henry T. Brown's "507 Mechanical Movements" (1868):
+  a rack-frame B with internal racks top and bottom, a continuously cranked gear D, and a selector
+  rod A. Selector up: the gear drives one rack and the frame travels one way. Down: the other rack,
+  the other way. Middle: the gear spins free and the frame stays put. Reference drawing:
+  reference/brown-1868-movement-84.png. Printable interpretation: the frame's end rods ride in
+  vertical slots in two stands (guiding it horizontally while letting it float vertically), and
+  A's yoke pins ride in slots on top of the frame, as in the drawing.
+
+requirements:
+  - id: R1
+    text: "Desk model: swept footprint ≤ 145 × 70 mm (user decision: ~140 mm for 2 teeth of travel with faithful moving rods), height ≤ 100 mm, including crank and selector at their extremes"
+    verify: "fit:sweep (swept envelope) + human"
+  - id: R2
+    text: "Selector UP → frame moves one way while cranking; DOWN → the other way; NEUTRAL → gear clears both racks and the frame does not move"
+    verify: "fit:sweep (all three selector states) + human"
+  - id: R3
+    text: "No collisions between any parts in any selector state at any crank angle, including frame travel to both ends"
+    verify: "fit:sweep"
+  - id: R4
+    text: "Frame travel 12 mm each way = 2 teeth of 6 mm, one tooth per blade with a pause between (2D contact study, mechanism.md); the cam runs off the last tooth at the travel end"
+    verify: "fit:sweep + human"
+  - id: R5
+    text: "Selector A has three detented positions with a felt click: 5-15 N to move between detents, strain under the repeated-use allowance"
+    verify: "sim:detent"
+  - id: R6
+    text: "Faithful drive: D is a 4-blade curved cam stepping sawtooth racks (leaning opposite ways top/bottom); blades drive the tooth faces reliably when printed. One-way crank as in 1868, with a raised direction arrow"
+    verify: "fit + human"
+  - id: R7
+    text: "Crank survives a 10 N push at the knob (SF ≥ 2 in print orientation)"
+    verify: "sim:crank_push"
+  - id: R8
+    text: "Every part support-free in PETG with walls meeting the plate vertically (no chamfers or rounds at the plate); total print ≤ 2 h"
+    verify: "check + slice"
+  - id: R9
+    text: "Reads as the 1868 engraving from the front: stadium frame B with raised slotted top bar, end rods into two posts (left post on a curved arm), A as a rod ending in an inverted-U fork with two pins in the slot, D with its large disc behind on a two-upright pedestal; crank at the BACK; a thin low plinth with 'No. 84'; letters A, B, D in relief"
+    verify: human
+
+loads:
+  - "Cranking: ~10 N sideways at the crank knob"
+  - "Selector: a thumb pushes A up or down through the detents (target 5-15 N)"
+  - "Rack drive: friction plus frame inertia only (well under 2 N at the tooth)"
+
+material: PETG
+cosmetic: "The front face of the frame, the stands and the plinth are show faces. The back is plain."
+constraints:
+  - "Small project: ≤ 8 parts, ≤ 2 h print"
+  - "Single colour (user decision): details must read through relief and shadow, not colour"
+  - "All FDM footguns in CLAUDE.md apply (vertical walls at the plate, no round horizontal holes for shafts, no upright pins, felt snaps)"
+  - "Clearances come from forge/data/fits.yaml (uncalibrated)"
+
+open_questions: []
+
+params:
+  # ---- drive D: 4-blade cam (study_2d.cam_shape) on sawtooth racks. Solver values, mechanism.md §4: keep.
+  cam_r: 7.0                # blade tip radius
+  blade_t: 2.0              # blade thickness
+  blade_sweep: 35           # deg; blade curve as in study_2d
+  blade_hub: 3.0            # radius the blade curves start from (study_2d default)
+  cam_hub_r: 4.6            # solid hub for the shaft key; tooth tips stay >= 5.0 from the axis even at d = 2.0
+  pitch: 6.0
+  tooth_h: 3.0
+  tooth_flat: 0.4
+  engage_d: 1.6             # blade tip depth past the engaged tooth tip line
+  neutral_clear: 1.0        # cam tip circle to both tooth tip lines in NEUTRAL
+  travel_steps: 2           # T = 2 x 6 = 12 mm each way
+  push_gap: 0.02            # solver: clearance kept after each push increment
+  cam_set: 0.5              # cam front face behind B's front face
+  disc_r: 17.0
+  disc_t: 2.4
+  disc_gap: 0.9             # A to disc: clears the drag leaf when deflected; puts the sleeve on the 0.2 layer grid
+  groove_w: 1.2             # disc grooves continuing each blade to the rim (cosmetic)
+  groove_d: 0.4
+  groove_sweep: 40
+  d_letter: 5.0             # raised D sits inside the hub
+  axis_h: 30.0              # D's axis above the desk
+  # ---- frame B (rods are part of it; printed on its back)
+  frame_t: 5.0
+  rim_t: 2.4
+  frame_ls: 16.0            # half-length of the straight section (racks span +-13.9)
+  bar_rail: 2.0
+  bar_end: 1.6
+  bar_step: 2.4             # shoulder steps in under each rounded bar end
+  bar_fillet: 1.5           # concave fillets where the bar and shoulders meet the frame
+  hand_gap: 0.8             # B's end meets the post's front cheek at T + hand_gap (hand stop)
+  pin_overrun: 0.3          # the pins reach the slot ends only past the hand stop
+  web_t: 2.4                # recessed web in the window's left end, carries the raised B
+  web_clear: 0.6
+  rod_t: 3.6                # rod depth (Y); the frame is deeper, so its end stops on the post cheek
+  rod_h: 4.0                # rod height (Z)
+  rod_past: 0.5             # rod end beyond the post at the hand stop
+  # ---- selector A (printed on its back)
+  sel_t: 4.0
+  pin_d: 3.6
+  fin_w: 0.8                # seam-catcher fin on each pin top (the 'back' seam lands on it)
+  fin_h: 0.6
+  fin_cl: 0.3               # clearance around the fin in B's slot groove
+  pin_set: 0.2              # pin tips behind B's front face
+  pin_s: 24.0               # >= 24 limits B's rocking (mechanism.md §3)
+  leg_w: 6.0
+  leg_below: 1.2
+  crown_h: 3.0
+  crown_cl: 0.6
+  fork_r: 3.0
+  core_w: 4.0
+  flag_t: 1.3
+  flag_l: 13.0
+  flag_gap: 1.2
+  flag_root_r: 1.5
+  bump_h: 1.2               # engagement = bump_h - sliding gap = 1.0 mm
+  grip_w: 9.4               # passes up through the sleeve at assembly
+  grip_h: 8.0
+  drag_l: 10.0
+  drag_t: 1.0
+  drag_b: 3.4
+  drag_int: 0.4             # drag nub interference on B's bar
+  stop_cl: 0.6              # A's crown to the sleeve at UP (A's up stop)
+  # ---- base: plinth + posts (printed upright)
+  plinth_h: 3.0
+  plinth_r: 4.0
+  plinth_front: 14.0
+  post_t: 4.5               # post thickness in X (the bearing length)
+  cheek_t: 2.4
+  cheek_top: 1.4
+  floor_cl: 0.4
+  arm_off: 6.0              # left post's curved arm: foot offset outward
+  rail_w: 6.0               # dovetail rail width at the plinth (45-deg flanks)
+  rail_h: 2.0
+  rail_neck: 0.4
+  # ---- pedestal: uprights + bearing head + column + A's sleeve + sill (printed on its back)
+  ped_d: 8.0
+  upr_w: 3.5
+  upr_x: 18.0               # uprights' outer edge (beside the disc, as drawn)
+  head_h: 6.0
+  sleeve_wall: 2.2
+  sleeve_front: 1.8
+  sill_h: 5.0
+  sill_x: 22.5
+  latch_l: 13.0
+  latch_t: 1.8
+  latch_slit: 1.4
+  latch_barb: 1.2
+  latch_pocket: 1.6
+  pocket_wall: 1.8
+  barb_x0: 3.5             # latch barb spans tip-3.5 .. tip-1.0 (pocket, FEA region follow)
+  barb_x1: 1.0
+  groove_back: 1.6          # sill groove is blind at the back: the rail's end is the forward stop
+  # ---- crank (shaft + arm + knob, lies on the shaft's flat)
+  shaft_r: 3.25
+  shaft_zf: 2.3
+  bore_skin: 1.2
+  tip_half: 2.0
+  tine_slot: 1.2
+  tine_l: 10.5
+  tine_taper: 0.7           # tine tip thickness / root thickness (spreads the root strain)
+  barb: 1.0
+  barb_l: 2.0
+  snap_z0: -0.3             # shaft barb band (z); the cam's grooves add the sliding gap
+  snap_z1: 1.5
+  hub_r: 4.5
+  crank_r: 15.0
+  crank_t: 3.6
+  arm_h: 3.4
+  knob_r: 3.9
+  knob_l: 10.0
+  # ---- relief
+  letter_h: 0.8
+  panel_depth: 0.4
+  t_sel: 180                # motion (default pose: UP, B centred, for the hero): 0..360 UP + crank, 360..720 DOWN + crank, 720..1080 NEUTRAL + crank
+
+printer:
+  machine: "Bambu Lab X1 Carbon 0.4 nozzle"
+  process: "0.20mm Standard @BBL X1C"
+  bed_type: "Textured PEI Plate"
+  overrides:
+    wall_loops: 3
+    seam_position: back

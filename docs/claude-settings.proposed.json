@@ -1,0 +1,16 @@
+{
+  "_note": "Proposed .claude/settings.json for this repo. Not active. Copy it to .claude/settings.json yourself if you want it. Allows the forge CLI and tests without prompts; denies agents the human-only approve command and hand edits to approvals.json. The real guard is forge approve's TTY check; these deny rules are a second layer.",
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/forge:*)",
+      "Bash(.venv/bin/python -m pytest:*)",
+      "Bash(make test:*)"
+    ],
+    "deny": [
+      "Bash(.venv/bin/forge approve:*)",
+      "Bash(forge approve:*)",
+      "Edit(projects/*/approvals.json)",
+      "Write(projects/*/approvals.json)"
+    ]
+  }
+}

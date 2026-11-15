@@ -1,0 +1,606 @@
+<title>Forge Pipeline Retrospective</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one reading column like a shop traveller; evidence chips carry the forge evidence vocabulary; the sketch section is the widest block. */
+:root {
+  --bg: #f3f5f7;
+  --surface: #ffffff;
+  --sunk: #e9edf1;
+  --ink: #16202a;
+  --muted: #56636f;
+  --rule: #d3dae1;
+  --accent: #1d5bbd;
+  --accent-soft: #e2ebf9;
+  --verified: #16202a;
+  --measured: #0d7f74;
+  --heuristic: #9a6200;
+  --estimated: #6f45bb;
+  --good: #2b7d43;
+  --warn: #a96d0e;
+  --bad: #b83a26;
+  --hatch: #b9c3cc;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151b; --surface: #161e26; --sunk: #1c2630; --ink: #e2e8ee; --muted: #94a2af; --rule: #2b3743;
+    --accent: #7ea8ff; --accent-soft: #1c2a42; --verified: #e2e8ee; --measured: #45c3b3; --heuristic: #e3aa45;
+    --estimated: #b398ff; --good: #62c47e; --warn: #e3aa45; --bad: #ff7d66; --hatch: #3a4652; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #161e26; --sunk: #1c2630; --ink: #e2e8ee; --muted: #94a2af; --rule: #2b3743;
+  --accent: #7ea8ff; --accent-soft: #1c2a42; --verified: #e2e8ee; --measured: #45c3b3; --heuristic: #e3aa45;
+  --estimated: #b398ff; --good: #62c47e; --warn: #e3aa45; --bad: #ff7d66; --hatch: #3a4652; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15.5px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+main { max-width: 980px; margin: 0 auto; display: grid; gap: 56px; }
+section { display: grid; gap: 18px; min-width: 0; }
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(2.1rem, 5vw, 3.1rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.75rem; font-weight: 700; }
+h3 { font-size: 1.22rem; font-weight: 600; }
+h4 { font-size: 1rem; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, .mono { font-family: var(--f-mono); font-size: 0.88em; }
+.eyebrow { font-family: var(--f-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
+.lede { font-size: 1.12rem; max-width: 66ch; }
+.muted { color: var(--muted); }
+header { display: grid; gap: 14px; }
+.stamp { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--f-mono); font-size: 0.78rem; color: var(--muted); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding-block: 8px; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.9rem; }
+nav.toc a { text-decoration: none; border-bottom: 1px solid var(--rule); }
+
+/* evidence chips */
+.ev { display: inline-block; font-family: var(--f-mono); font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 6px; border-radius: 3px; border: 1px solid currentColor; vertical-align: 0.1em; white-space: nowrap; }
+.ev.v { color: var(--verified); }
+.ev.m { color: var(--measured); }
+.ev.h { color: var(--heuristic); }
+.ev.e { color: var(--estimated); }
+.ev.r { color: var(--muted); border-style: dashed; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 0.85rem; color: var(--muted); align-items: center; }
+
+/* verdict tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.tile .n { font-family: var(--f-display); font-size: 1.9rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile .l { font-size: 0.88rem; color: var(--muted); }
+
+/* figures */
+figure { margin: 0; display: grid; gap: 8px; min-width: 0; }
+figcaption { font-size: 0.85rem; color: var(--muted); max-width: 80ch; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
+svg text { font-family: var(--f-mono); }
+
+/* lists of findings */
+.findings { display: grid; gap: 0; border-top: 1px solid var(--rule); }
+.finding { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); gap: 8px 24px; padding-block: 14px; border-bottom: 1px solid var(--rule); }
+.finding h3 { font-size: 1.05rem; }
+.finding .body { display: grid; gap: 6px; min-width: 0; }
+.finding .cost { font-family: var(--f-mono); font-size: 0.78rem; color: var(--bad); }
+.finding .src { font-size: 0.82rem; color: var(--muted); }
+@media (max-width: 680px) { .finding { grid-template-columns: minmax(0, 1fr); } }
+
+.callout { background: var(--accent-soft); border-radius: 6px; padding: 16px 18px; display: grid; gap: 8px; }
+.callout.warn { background: var(--sunk); border-left: 3px solid var(--warn); border-radius: 0 6px 6px 0; }
+.callout ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+
+/* pipeline flow */
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; }
+.step { background: var(--surface); border: 1px solid var(--rule); border-radius: 5px; padding: 8px 10px; font-size: 0.85rem; display: grid; gap: 2px; min-width: 0; }
+.step b { font-family: var(--f-display); font-weight: 600; font-size: 0.95rem; }
+.step.new { border: 2px solid var(--accent); background: var(--accent-soft); flex: 1 1 260px; }
+.step.gate { border-style: dashed; }
+.arrow { align-self: center; color: var(--muted); font-family: var(--f-mono); }
+
+/* tables */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--f-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 500; background: var(--sunk); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.pill { display: inline-block; font-family: var(--f-mono); font-size: 0.72rem; padding: 1px 7px; border-radius: 10px; background: var(--sunk); white-space: nowrap; }
+.pill.hi { background: var(--accent); color: var(--surface); }
+.pill.s { border: 1px solid var(--good); color: var(--good); background: transparent; }
+.pill.mm { border: 1px solid var(--warn); color: var(--warn); background: transparent; }
+.pill.l { border: 1px solid var(--bad); color: var(--bad); background: transparent; }
+
+/* proposal cards */
+.proposals { display: grid; gap: 18px; }
+.prop { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; display: grid; gap: 12px; min-width: 0; }
+.prop.lead { border: 2px solid var(--accent); }
+.prop .head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+.prop .rank { font-family: var(--f-mono); font-size: 0.8rem; color: var(--accent); }
+.prop .meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.prop .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 24px; }
+.prop .cols > div { min-width: 0; display: grid; gap: 6px; align-content: start; }
+.prop ul, .prop ol { margin: 0; padding-left: 1.2em; display: grid; gap: 5px; font-size: 0.92rem; }
+pre { margin: 0; background: var(--sunk); border-radius: 5px; padding: 10px 12px; overflow-x: auto; font-family: var(--f-mono); font-size: 0.8rem; line-height: 1.5; }
+.k { font-family: var(--f-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.twocol { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.twocol > * { min-width: 0; }
+details { border-top: 1px solid var(--rule); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 500; }
+.sources { font-size: 0.85rem; color: var(--muted); display: grid; gap: 4px; }
+.sources code { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<main>
+<header>
+  <div class="eyebrow">Retrospective · forge workspace · ~/3dp</div>
+  <h1>Forge Pipeline Retrospective</h1>
+  <p class="lede">The day's work covered eight projects in 16 hours. Forge reliably proves that a part will print. It doesn't help an agent work out whether a mechanism makes sense before it writes CAD. The projects that did the maths first went straight through, and the two that didn't took longest. The fix is a cheap sketch stage between the spec and <code>design.py</code>, built from tools that already half-exist.</p>
+  <div class="stamp">
+    <span>window 2026-11-14 22:57 → 2026-11-15 14:58</span>
+    <span>8 journals · 281 entries</span>
+    <span>status read 2026-11-15</span>
+  </div>
+  <div class="legend">
+    <span><span class="ev v">verified</span> geometric or slicer fact</span>
+    <span><span class="ev m">measured</span> sampled geometry</span>
+    <span><span class="ev h">heuristic</span> rule of thumb</span>
+    <span><span class="ev e">estimated</span> FEA or material data, low confidence</span>
+    <span><span class="ev r">reported</span> the lead's observation, not in the files</span>
+  </div>
+  <nav class="toc" aria-label="Sections">
+    <a href="#timeline">Timeline</a><a href="#strengths">What works</a><a href="#spinning">Wheel-spinning</a>
+    <a href="#corrections">Corrections to the brief</a><a href="#sketch">Sketch before CAD</a><a href="#ranked">Ranked proposals</a><a href="#ops">Other fixes</a><a href="#sources">Sources</a>
+  </nav>
+</header>
+
+<section aria-labelledby="verdict">
+  <h2 id="verdict" class="eyebrow" style="font-family:var(--f-mono);font-size:.75rem;font-weight:500">At a glance</h2>
+  <div class="tiles">
+    <div class="tile"><span class="n">3</span><span class="l">released: jumping frog (a9a33c6b), movement 114 (ea90883a), gator clip (9e3f6e77)</span></div>
+    <div class="tile"><span class="n">1 h 33 m</span><span class="l">brief to release for the jumping frog, which sized its spring in closed form 9 min after the brief</span></div>
+    <div class="tile"><span class="n">3 h 20 m</span><span class="l">of rack-frame CAD (v1 + v2) thrown away when the user said the mechanism didn't make sense</span></div>
+    <div class="tile"><span class="n">10 min</span><span class="l">from that complaint to a corrected mechanism audit plus a 2D contact study (05:27:59 → 05:37:58)</span></div>
+    <div class="tile"><span class="n">~11 h</span><span class="l">automaton R7 crank shaft open, from SF 1.75 at 03:45 to SF 1.18, unconverged, at 14:57</span></div>
+    <div class="tile"><span class="n">7</span><span class="l">journal entries where a CalculiX timeout or crash blocked a full run</span></div>
+  </div>
+</section>
+
+<section aria-labelledby="timeline">
+  <h2 id="timeline">Timeline</h2>
+  <p>Each bar is a project's journal, from its first entry to its last. The pattern is visible before you read any detail. Short bars solved their mechanism or spring on paper in the first 20 minutes. The long bars changed architecture during detail design.</p>
+  <figure>
+    <div class="scroll">
+      <svg viewBox="0 0 960 322" width="960" height="322" role="img" aria-label="Project timeline from 22:00 on Nov 14 to 15:00 on Nov 15">
+        <defs>
+          <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="6" height="6" fill="var(--surface)"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--hatch)" stroke-width="3"/>
+          </pattern>
+        </defs>
+        <!-- grid: x = 140 + h*46, h = hours after 22:00 -->
+        <g stroke="var(--rule)" stroke-width="1">
+          <line x1="140" y1="26" x2="140" y2="272"/><line x1="232" y1="26" x2="232" y2="272"/><line x1="324" y1="26" x2="324" y2="272"/>
+          <line x1="416" y1="26" x2="416" y2="272"/><line x1="508" y1="26" x2="508" y2="272"/><line x1="600" y1="26" x2="600" y2="272"/>
+          <line x1="692" y1="26" x2="692" y2="272"/><line x1="784" y1="26" x2="784" y2="272"/><line x1="876" y1="26" x2="876" y2="272"/>
+        </g>
+        <g fill="var(--muted)" font-size="11" text-anchor="middle">
+          <text x="140" y="18">22:00</text><text x="232" y="18">00:00</text><text x="324" y="18">02:00</text><text x="416" y="18">04:00</text>
+          <text x="508" y="18">06:00</text><text x="600" y="18">08:00</text><text x="692" y="18">10:00</text><text x="784" y="18">12:00</text><text x="876" y="18">14:00</text>
+        </g>
+        <g fill="var(--ink)" font-size="12">
+          <text x="10" y="48">snapbox</text><text x="10" y="82">automaton</text><text x="10" y="116">automaton-a/b</text>
+          <text x="10" y="150">rack-frame</text><text x="10" y="184">movement 114</text><text x="10" y="218">jumping-frog</text><text x="10" y="252">gator-clip</text>
+        </g>
+        <!-- snapbox 0.95-2.92 -->
+        <rect x="184" y="36" width="91" height="16" rx="2" fill="var(--muted)"/>
+        <!-- automaton 1.85-16.97 -->
+        <rect x="225" y="70" width="696" height="16" rx="2" fill="var(--warn)"/>
+        <!-- concepts 2.25-2.83 -->
+        <rect x="243" y="104" width="27" height="16" rx="2" fill="var(--muted)"/>
+        <!-- rack-frame v1 4.12-5.13 v2 5.27-7.47 study 7.47-7.63 decision 8.25 v3 8.85-16.52 -->
+        <rect x="330" y="138" width="46" height="16" rx="2" fill="var(--bad)" opacity=".85"/>
+        <rect x="382" y="138" width="101" height="16" rx="2" fill="var(--bad)" opacity=".85"/>
+        <rect x="484" y="134" width="8" height="24" fill="var(--accent)"/>
+        <rect x="547" y="138" width="353" height="16" rx="2" fill="var(--warn)"/>
+        <!-- 114: 5.12-11.85 active, 11.85-15.72 awaiting gate; study at 5.45 -->
+        <rect x="376" y="172" width="310" height="16" rx="2" fill="var(--good)"/>
+        <rect x="686" y="172" width="178" height="16" rx="2" fill="url(#hatch)" stroke="var(--hatch)"/>
+        <rect x="390" y="168" width="5" height="24" fill="var(--accent)"/>
+        <!-- frog 5.68-7.23 -->
+        <rect x="401" y="206" width="72" height="16" rx="2" fill="var(--good)"/>
+        <rect x="402" y="202" width="5" height="24" fill="var(--accent)"/>
+        <!-- gator 6.72-12.83 active, 12.83-15.72 awaiting -->
+        <rect x="449" y="240" width="281" height="16" rx="2" fill="var(--good)"/>
+        <rect x="730" y="240" width="134" height="16" rx="2" fill="url(#hatch)" stroke="var(--hatch)"/>
+        <rect x="451" y="236" width="5" height="24" fill="var(--accent)"/>
+        <!-- human rejections (triangles) -->
+        <g fill="var(--ink)">
+          <path d="M376 128 l6 -9 h-12z"/><path d="M483 128 l6 -9 h-12z"/>
+          <path d="M376 66 l6 -9 h-12z"/>
+        </g>
+        <!-- timeouts / ccx deaths (x marks) -->
+        <g stroke="var(--bad)" stroke-width="2.2" stroke-linecap="round">
+          <path d="M490 64 l6 6 m0 -6 l-6 6"/><path d="M807 64 l6 6 m0 -6 l-6 6"/>
+          <path d="M629 132 l6 6 m0 -6 l-6 6"/><path d="M779 132 l6 6 m0 -6 l-6 6"/>
+          <path d="M459 166 l6 6 m0 -6 l-6 6"/>
+          <path d="M537 234 l6 6 m0 -6 l-6 6"/><path d="M567 234 l6 6 m0 -6 l-6 6"/>
+        </g>
+        <!-- releases -->
+        <g fill="var(--good)" stroke="var(--surface)" stroke-width="2">
+          <circle cx="864" cy="180" r="7"/><circle cx="473" cy="214" r="7"/><circle cx="864" cy="248" r="7"/>
+        </g>
+        <!-- annotations -->
+        <g font-size="10.5" fill="var(--muted)">
+          <text x="280" y="48">test print → felt-snap rule</text>
+          <text x="344" y="132">v1</text><text x="420" y="132">v2</text>
+          <text x="496" y="132" fill="var(--accent)">2D study</text>
+          <text x="600" y="150" fill="var(--surface)">v3: rebuilt from mechanism.md</text>
+          <text x="640" y="82" fill="var(--surface)">R7 shaft open 11 h</text>
+          <text x="690" y="201">awaiting print gate</text>
+        </g>
+        <!-- legend -->
+        <g font-size="10.5" fill="var(--muted)">
+          <rect x="140" y="292" width="10" height="10" fill="var(--accent)"/><text x="156" y="301">mechanism or spring solved on paper</text>
+          <path d="M392 302 l6 -9 h-12z" fill="var(--ink)"/><text x="404" y="301">user rejects the direction</text>
+          <path d="M568 293 l7 7 m0 -7 l-7 7" stroke="var(--bad)" stroke-width="2"/><text x="584" y="301">ccx timeout or death</text>
+          <circle cx="712" cy="297" r="5" fill="var(--good)"/><text x="722" y="301">released</text>
+          <rect x="790" y="292" width="14" height="10" fill="url(#hatch)" stroke="var(--hatch)"/><text x="810" y="301">waiting on human</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>All times come from journal timestamps. Rejections: rack-frame 03:07 ("deviated a fair bit"), 05:27 ("the mechanism doesn't actually make sense"), and automaton 03:08 ("simplify the designs"). The hatched bars are human latency at the print gate, not tool time.</figcaption>
+  </figure>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Project</th><th>Math before CAD?</th><th class="num">Span</th><th>Architecture changes in detail</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>jumping-frog</td><td>Spring by <code>forge flex hinge</code>, +9 min</td><td class="num">1 h 33 m</td><td>0</td><td>Released, 17 m 10 s, 7.1 g</td></tr>
+        <tr><td>gator-clip</td><td>Hinge stiffness 184 N·mm/rad and topology, +9 min</td><td class="num">6 h 07 m to ready</td><td>0 (six FEA sizing loops)</td><td>Released; "worked excellently" on an earlier revision</td></tr>
+        <tr><td>movement 114</td><td>2D shapely study plus a feature checklist, +20 min</td><td class="num">6 h 44 m to ready</td><td>0</td><td>Released, 1 h 36 m, 38.1 g</td></tr>
+        <tr><td>rack-frame</td><td>v1 none; v2 contact solve at 03:28, but no DOF or width budget; v3 from <code>mechanism.md</code></td><td class="num">12 h 24 m</td><td>2 (v1 → v2 → v3)</td><td>All stages current, no gate yet</td></tr>
+        <tr><td>automaton</td><td>Closed-form head angle and flex; no shaft screen until 06:57</td><td class="num">15 h 07 m</td><td>ring + deck at 02:02, three simplification passes, snap pass</td><td>R7 open (SF 1.18), no gate</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="strengths">
+  <h2 id="strengths">What forge does really well</h2>
+  <div class="findings">
+    <div class="finding"><h3>Stale results are refused</h3><div class="body">
+      <p><code>stages._current</code> raises when <code>design.py</code>, <code>spec.yaml</code> or <code>forge/data</code> changed since the build. <code>forge status</code> shows it today: snapbox and jumping-frog read "design/spec changed since build" on every stage after build. <span class="ev v">verified</span></p>
+      <p class="src">So their numbers on this page come from the journal, labelled as such. The rule cost time too, as Wheel-spinning #8 shows.</p></div></div>
+    <div class="finding"><h3>FEA that was made to fail first</h3><div class="body">
+      <p><code>tests/test_fea_validation.py</code> asserts Timoshenko deflection within 4%. The README reports 1.3%. Displacement control matches force control within 8% and beam theory within 15%. The coupling exists because snapbox v1 was 2.8× too stiff, and an agent diagnosed that instead of shipping it. <span class="ev v">verified</span> test suite</p>
+      <p class="src">The sim engineer's trust checklist caught three boundary-condition artefacts: the automaton shoulder clamp at 07:21, the deck clamp at 08:34, and the clip's symmetry slab.</p></div></div>
+    <div class="finding"><h3>Real slicing, checked</h3><div class="body">
+      <p>Presets are flattened, and <code>presets_applied</code> compares the G-code header with the request. The hard-won fact: a raw preset slices with a 200×200 bed, PLA and 0 g. Every time and gram figure on this page is a Bambu estimate from that path. <span class="ev v">verified</span></p></div></div>
+    <div class="finding"><h3>Every check can fail</h3><div class="body">
+      <p>18 tests in <code>test_checks_fail.py</code>, including bed-edge rounds, domes, supports without opt-in, thin Z gaps and undeclared touching parts. New user rules became checks within the hour (<code>up_curves</code> 03:23, retention 03:47, <code>sharp_corners</code> 02:56). <span class="ev v">verified</span></p></div></div>
+    <div class="finding"><h3>Physical feedback becomes rules</h3><div class="body">
+      <p>The snapbox print (0.4 mm engagement, about 0.9 N) gave no felt click. That became the ≥ 1 mm, 5-15 N rule, and every later snap was sized to it: rack-frame latch t 1.6 → 1.8 because 4.55 N was under 5 N. Curled 45° chamfers became <code>bed_edge</code>. The gator clip "worked excellently". The user printed an earlier revision with no build recorded, so it isn't evidence for 9e3f6e77. <span class="ev v">verified</span> journal</p></div></div>
+    <div class="finding"><h3>One human gate, and a journal worth mining</h3><div class="body">
+      <p>Dropping to a single print gate (user, 05:15) didn't lose control. Approvals bind to a build hash, and three releases went out at 13:43. Each journal is a timestamped decision log, detailed enough to reconstruct this retrospective without asking anyone. <span class="ev v">verified</span></p></div></div>
+    <div class="finding"><h3>Studio puts the human in the loop early</h3><div class="body">
+      <p>The user spotted "spacing issues" on a studio screenshot of rack-frame v2 (03:46), and forge gained the undeclared-touching warning. That's the cheapest review in the system. The sketch stage below gives it something to show before any CAD exists. <span class="ev v">verified</span> journal</p></div></div>
+  </div>
+</section>
+
+<section aria-labelledby="spinning">
+  <h2 id="spinning">Where we're spinning our wheels</h2>
+  <div class="findings">
+    <div class="finding"><div><h3>1 · Mechanisms designed in CAD</h3><span class="cost">rack-frame: 3 h 20 m discarded</span></div><div class="body">
+      <p>The motion sweep checks the kinematics that <code>design.py</code> asserts. Parts are placed from <code>crank_deg</code> by the designer's own formula. The sweep can prove that nothing collides. It can't prove that the asserted motion is what the contacts would produce. Rack-frame v2 passed a 72-pose sweep with 0 collisions and was still rejected.</p>
+      <p>v2 even had a shapely solve (03:28), but no DOF table, no free-body diagram and no swept-width budget. <code>mechanism.md</code> §4b shows that the spec was infeasible by arithmetic: 2 teeth each way needs about 140 mm against a 120 mm limit. <span class="ev v">verified</span> journal + <code>mechanism.md</code></p></div></div>
+    <div class="finding"><div><h3>2 · Stress concentrations chased with FEA</h3><span class="cost">automaton R7: ~11 h open</span></div><div class="body">
+      <p>Crank SF went 1.75 → 1.52 (singularity, +32% on refinement) → 1.65 → 1.12 → 1.43 → 1.18 (unconverged, 17.5%). A hand calculation existed, at 06:57 and 07:21: nominal von Mises about 11 MPa, SF about 4. The real problem was Kt ≈ 2.6 at a shoulder the plate rule wouldn't let the designer fillet. Rack-frame (1.88 → 2.24) and 114 (1.81, then 1.94) hit the same shaft-to-hub shoulder. <span class="ev e">estimated</span> FEA</p></div></div>
+    <div class="finding"><div><h3>3 · Full-run FEA is slow and fragile</h3><span class="cost">7 blocking incidents</span></div><div class="body">
+      <p>CalculiX died at 483k nodes (automaton deck_snap, 12:36). The 1800 s timeout hit 114's post_snap, the gator open pass (three runs) and ped_latch (twice, about 1M nonlinear elements). The gator 07:21 entry names the cause: concurrent ccx jobs at load about 5.5. Each one runs with <code>OMP_NUM_THREADS=8</code>, hard-coded in <code>fea.run_ccx</code>. Mesh failures (inverted tets, slivers) appear in 19 entries. <span class="ev v">verified</span> journal + code</p></div></div>
+    <div class="finding"><div><h3>4 · Seams found by hand-written G-code parsing</h3><span class="cost">3 projects, late</span></div><div class="body">
+      <p>A seam sat on the crank snap root on all 23 layers (rack-frame 12:10). Pin seams landed on B's load face, and the arranger normalised the rotation that was meant to move them (13:56). Under <code>back</code>, 43 seams landed in the gator mouth. 114's <code>HANDBACK.md</code> has the only clean table. Forge has no seam tool: <code>slicer.py</code> only sums extrusion. <span class="ev m">measured</span> G-code</p>
+      <p class="src">Lead's note: the scripts live in a scratchpad. <span class="ev r">reported</span></p></div></div>
+    <div class="finding"><div><h3>5 · Physics can't judge tooth contact</h3><span class="cost">2 projects</span></div><div class="body">
+      <p>MuJoCo convex hulls stall on gear and rack teeth (rack-frame and 114 status: "drive STALLED"). On 114 the frame slide was briefly reported as validated, with a false PASS from 04:21 until the fix at 08:08. The 2D sketch solver is the right tool for tooth contact, so stop investing in hull fidelity for it. <span class="ev v">verified</span> status</p></div></div>
+    <div class="finding"><div><h3>6 · Aesthetics judged after detail</h3><span class="cost">rack-frame v3 polish round</span></div><div class="body">
+      <p>"D reads as a knob" and "the sleeve box hides rod A" arrived at 12:10, after 5 h of v3 detail. Both are silhouette questions that a 2D front elevation answers at concept. <span class="ev v">verified</span> journal</p></div></div>
+    <div class="finding"><div><h3>7 · One hand-back strands follow-ups</h3><span class="cost">process</span></div><div class="body">
+      <p>The designer was "stopped; rebuild … with a fresh designer" (rack-frame 05:27, 06:15). 114 worked around it by writing <code>HANDBACK.md</code>, a 72-line report file. The 14 h automaton designer run with more than 300 tool calls is the lead's figure. <span class="ev r">reported</span></p></div></div>
+    <div class="finding"><div><h3>8 · Shared data edits invalidate other runs</h3><span class="cost">2 full runs lost</span></div><div class="body">
+      <p>Editing <code>forge/data/rules.yaml</code> mid-run made rack-frame (07:36) and gator (08:13) stale before slice. The stale guard is right. Without a snapshot it just converts one agent's edit into another's re-run. <span class="ev v">verified</span> journal</p></div></div>
+    <div class="finding"><div><h3>9 · Manual checks still on the TODO list</h3><span class="cost">open</span></div><div class="body">
+      <p>Deflected-flexure clearance: the frog snap finger hit its cavity 0.1-0.36 mm before clearing, found by hand, and the cavity grew 1.0 → 1.7. Orient's <code>sf_min</code> disagreed with the sim SF on 114. The README still says "three gates". <span class="ev v">verified</span> CLAUDE.md, README</p></div></div>
+  </div>
+  <p class="muted">Not wheel-spinning: five user rules arrived during the day (bed edges, Markforged fillets, minimal and no up-curves, snap-together, simplify). Automaton's three simplification passes and its snap pass were the price of learning the user's taste. They're the reason the later projects went straight through.</p>
+</section>
+
+<section aria-labelledby="corrections">
+  <h2 id="corrections">Corrections to the brief</h2>
+  <div class="callout warn">
+    <p>Several of the lead's observations change shape when checked against the files. The proposals below are built on the corrected versions.</p>
+    <ul>
+      <li><b>Automaton shaft:</b> it wasn't found "only at full FEA, late". Fast FEA flagged SF 1.75 at 03:45, and a nominal hand calculation passed it at SF about 4. A shaft screen pays off only if it includes Kt and the plate-rule conflict. A nominal-only screen would have passed this shaft.</li>
+      <li><b>Rack-frame:</b> v2 already had a 2D contact solve. What solved v3 was the bundle: DOF table, free-body diagram, swept-width budget and a tolerance sweep of the contact study. So the gate has to require all of these, not just a solver run.</li>
+      <li><b><code>study_2d.py</code> metrics are wrong:</b> its <code>ok</code> flag is false on all 24 rows, including the chosen R7/p6, because 0.04 mm tail steps fail <code>min_step &gt; 0.5</code>. <code>mean_step</code> reads 3.14 for a 6 mm step, and <code>per_rev_mm</code> spans two revolutions (47.98 means 24 mm/rev). The decision was right because it was read off the figure. The productised tool must fix these.</li>
+      <li><b>"p ≤ 5 runs away":</b> the saved study shows p = 5 <i>jams</i> at d = 2.0 (17 unresolved steps, R 6-8) and runs away only at R 8 / d 1.6 (40 mm/rev). p = 6 gives 24.0 mm/rev at every depth and radius. <span class="ev m">measured</span> 2D</li>
+      <li><b>FEA validation:</b> the test asserts 4%. The 1.3% is the README's measured claim.</li>
+    </ul>
+  </div>
+</section>
+
+<section aria-labelledby="sketch">
+  <div class="eyebrow">Centrepiece</div>
+  <h2 id="sketch">Sketch before CAD</h2>
+  <p class="lede">Before an agent writes <code>design.py</code>, it should hold a solved 2D mechanism and closed-form margins for every shaft, snap and flexure, plus an envelope that fits. All of it should run in seconds and write a hash-stamped result like every other forge stage.</p>
+
+  <figure>
+    <div class="flow" aria-label="Proposed pipeline">
+      <div class="step"><b>brief</b><span class="muted">chat</span></div><span class="arrow">→</span>
+      <div class="step"><b>spec.yaml</b><span class="muted">chat decision</span></div><span class="arrow">→</span>
+      <div class="step new"><b>concept card (new)</b>
+        <span>DOF table · free-body · <code>forge budget</code> · <code>forge sketch</code> at tolerance extremes · <code>forge screen</code> shafts, snaps · <code>forge prbm</code> flexures · front-elevation SVG for the critic</span>
+        <span class="mono muted">→ build/results/concept.json (hash-stamped)</span></div><span class="arrow">→</span>
+      <div class="step"><b>design.py</b><span class="muted">imports the sketch profiles</span></div><span class="arrow">→</span>
+      <div class="step"><b>forge run</b><span class="muted">orient · check · fit · sim · slice</span></div><span class="arrow">→</span>
+      <div class="step gate"><b>print gate</b><span class="muted">human, the only one</span></div>
+    </div>
+    <figcaption>The concept card isn't a new human approval (the user wants fewer). It's a machine precondition. The skill won't dispatch the designer without a current <code>concept.json</code>, and <code>forge build</code> adds a FAIL row when a design declares <code>Motion</code> or flex LoadCases without one. The human sees the card in chat, where concept decisions already happen.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="twocol">
+      <div class="scroll" style="padding:8px">
+        <svg viewBox="0 0 420 190" width="100%" role="img" aria-label="Movement 84 cam and sawtooth rack, solved profile">
+          <path d="M18.0,148.4 L18.0,130.4 L84.0,130.4 L84.0,112.4 L86.4,112.4 L119.7,130.4 L120.0,130.4 L120.0,112.4 L122.4,112.4 L155.7,130.4 L156.0,130.4 L156.0,112.4 L158.4,112.4 L191.7,130.4 L192.0,130.4 L192.0,112.4 L194.4,112.4 L227.7,130.4 L228.0,130.4 L228.0,112.4 L230.4,112.4 L263.7,130.4 L264.0,130.4 L264.0,112.4 L266.4,112.4 L299.7,130.4 L300.0,130.4 L300.0,112.4 L302.4,112.4 L335.7,130.4 L366.0,130.4 L366.0,148.4 L18.0,148.4Z" fill="var(--sunk)" stroke="var(--muted)" stroke-width="1"/>
+          <path d="M216.6,97.0 L219.0,100.0 L222.6,102.2 L226.7,103.3 L232.1,103.7 L234.8,105.2 L236.2,107.1 L236.6,109.4 L236.2,111.7 L234.9,113.7 L233.0,115.0 L231.5,115.4 L225.2,115.2 L219.4,113.9 L213.7,111.1 L210.1,108.1 L207.3,104.7 L205.3,101.0 L204.2,97.0 L200.5,95.3 L197.7,93.1 L195.0,90.0 L193.2,86.6 L190.5,88.5 L188.2,91.7 L186.9,95.5 L186.3,102.1 L184.8,104.8 L182.9,106.2 L179.8,106.6 L177.6,105.9 L175.4,103.7 L174.5,100.7 L175.1,93.3 L176.6,88.2 L179.2,83.4 L181.9,80.1 L185.3,77.3 L189.0,75.3 L193.0,74.2 L194.7,70.5 L196.9,67.7 L200.0,65.0 L203.4,63.2 L201.5,60.5 L198.3,58.2 L194.5,56.9 L187.9,56.3 L185.2,54.8 L183.8,52.9 L183.4,49.8 L184.1,47.6 L186.3,45.4 L189.3,44.5 L196.7,45.1 L201.8,46.6 L206.6,49.2 L209.9,51.9 L212.7,55.3 L214.7,59.0 L215.8,63.0 L219.5,64.7 L222.3,66.9 L225.0,70.0 L226.8,73.4 L229.5,71.5 L231.8,68.3 L233.1,64.5 L233.7,57.9 L235.2,55.2 L237.1,53.8 L240.2,53.4 L243.1,54.5 L244.6,56.3 L245.5,59.3 L244.9,66.7 L243.4,71.8 L240.8,76.6 L238.1,79.9 L234.7,82.7 L231.0,84.7 L227.0,85.8 L225.3,89.5 L223.1,92.3 L220.5,94.6 L216.6,97.0Z" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+          <circle cx="210" cy="80" r="2" fill="var(--accent)"/>
+          <g font-size="10" fill="var(--muted)">
+            <text x="8" y="16">D: R 7, 4 blades × 2.0 mm</text>
+            <text x="8" y="30">B: sawtooth p 6, h 3, depth d 1.6</text>
+            <text x="8" y="182">real profiles from study_2d.cam_shape / rack, 1 mm = 6 px</text>
+          </g>
+        </svg>
+      </div>
+      <div class="scroll" style="padding:8px">
+        <svg viewBox="0 0 540 230" width="100%" role="img" aria-label="Frame travel versus crank angle, four 6 mm steps per revolution">
+          <g stroke="var(--rule)" stroke-width="1">
+            <line x1="40" y1="190" x2="520" y2="190"/><line x1="40" y1="20" x2="40" y2="190"/>
+            <line x1="40" y1="147.5" x2="520" y2="147.5" stroke-dasharray="2 4"/><line x1="40" y1="105" x2="520" y2="105" stroke-dasharray="2 4"/>
+            <line x1="40" y1="62.5" x2="520" y2="62.5" stroke-dasharray="2 4"/><line x1="40" y1="20" x2="520" y2="20" stroke-dasharray="2 4"/>
+            <line x1="280" y1="20" x2="280" y2="190" stroke-dasharray="2 4"/>
+          </g>
+          <polyline points="40.0,190.0 40.7,190.0 41.3,190.0 42.0,190.0 42.7,190.0 43.3,190.0 44.0,190.0 44.7,190.0 45.3,190.0 46.0,190.0 46.7,190.0 47.3,190.0 48.0,190.0 48.7,190.0 49.3,190.0 50.0,190.0 50.7,190.0 51.3,190.0 52.0,190.0 52.7,190.0 53.3,190.0 54.0,190.0 54.7,190.0 55.3,190.0 56.0,190.0 56.7,190.0 57.3,190.0 58.0,190.0 58.7,190.0 59.3,190.0 60.0,190.0 60.7,190.0 61.3,190.0 62.0,190.0 62.7,190.0 63.3,190.0 64.0,190.0 64.7,190.0 65.3,190.0 66.0,190.0 66.7,190.0 67.3,190.0 68.0,190.0 68.7,190.0 69.3,190.0 70.0,190.0 70.7,189.7 71.3,189.4 72.0,189.0 72.7,188.7 73.3,188.3 74.0,187.9 74.7,187.5 75.3,187.2 76.0,186.8 76.7,186.5 77.3,186.0 78.0,185.7 78.7,185.3 79.3,185.0 80.0,184.5 80.7,184.2 81.3,183.8 82.0,183.5 82.7,183.1 83.3,182.7 84.0,182.3 84.7,182.0 85.3,181.6 86.0,181.3 86.7,180.9 87.3,180.6 88.0,180.2 88.7,179.9 89.3,179.5 90.0,179.2 90.7,178.8 91.3,178.5 92.0,178.1 92.7,177.8 93.3,177.5 94.0,177.1 94.7,176.8 95.3,176.5 96.0,176.2 96.7,175.9 97.3,175.6 98.0,175.3 98.7,175.1 99.3,174.9 100.0,174.7 100.7,174.5 101.3,174.3 102.0,174.3 102.7,174.2 103.3,174.2 104.0,174.2 104.7,174.2 105.3,174.2 106.0,174.2 106.7,174.2 107.3,174.2 108.0,174.2 108.7,174.2 109.3,174.2 110.0,174.2 110.7,174.2 111.3,174.2 112.0,174.2 112.7,174.2 113.3,174.2 114.0,174.2 114.7,174.2 115.3,174.2 116.0,174.2 116.7,174.2 117.3,174.2 118.0,174.2 118.7,174.2 119.3,174.2 120.0,174.1 120.7,173.8 121.3,173.5 122.0,173.1 122.7,172.8 123.3,172.4 124.0,172.1 124.7,171.7 125.3,171.4 126.0,171.0 126.7,170.7 127.3,170.3 128.0,170.0 128.7,169.6 129.3,169.2 130.0,168.9 130.7,168.5 131.3,168.1 132.0,167.8 132.7,167.4 133.3,167.1 134.0,166.6 134.7,166.3 135.3,165.9 136.0,165.6 136.7,165.2 137.3,164.8 138.0,164.4 138.7,164.1 139.3,163.7 140.0,163.3 140.7,162.9 141.3,162.6 142.0,162.2 142.7,161.9 143.3,161.5 144.0,161.1 144.7,160.7 145.3,160.4 146.0,160.0 146.7,159.7 147.3,159.3 148.0,159.0 148.7,158.6 149.3,158.3 150.0,157.9 150.7,157.6 151.3,157.2 152.0,156.8 152.7,156.6 153.3,156.2 154.0,155.9 154.7,155.5 155.3,155.2 156.0,154.9 156.7,154.7 157.3,154.4 158.0,154.1 158.7,153.9 159.3,153.7 160.0,153.4 160.7,153.2 161.3,153.1 162.0,153.0 162.7,153.0 163.3,153.0 164.0,153.0 164.7,153.0 165.3,153.0 166.0,153.0 166.7,153.0 167.3,153.0 168.0,153.0 168.7,153.0 169.3,153.0 170.0,153.0 170.7,153.0 171.3,153.0 172.0,153.0 172.7,153.0 173.3,153.0 174.0,153.0 174.7,153.0 175.3,153.0 176.0,153.0 176.7,153.0 177.3,153.0 178.0,153.0 178.7,153.0 179.3,153.0 180.0,152.9 180.7,152.6 181.3,152.2 182.0,151.9 182.7,151.5 183.3,151.2 184.0,150.8 184.7,150.5 185.3,150.1 186.0,149.8 186.7,149.4 187.3,149.1 188.0,148.7 188.7,148.3 189.3,148.0 190.0,147.6 190.7,147.2 191.3,146.9 192.0,146.5 192.7,146.2 193.3,145.8 194.0,145.4 194.7,145.0 195.3,144.7 196.0,144.3 196.7,144.0 197.3,143.5 198.0,143.2 198.7,142.8 199.3,142.5 200.0,142.0 200.7,141.7 201.3,141.3 202.0,141.0 202.7,140.6 203.3,140.2 204.0,139.8 204.7,139.5 205.3,139.1 206.0,138.8 206.7,138.4 207.3,138.1 208.0,137.7 208.7,137.4 209.3,137.0 210.0,136.7 210.7,136.3 211.3,136.0 212.0,135.6 212.7,135.3 213.3,135.0 214.0,134.6 214.7,134.3 215.3,134.0 216.0,133.7 216.7,133.4 217.3,133.1 218.0,132.8 218.7,132.6 219.3,132.4 220.0,132.2 220.7,132.0 221.3,131.8 222.0,131.8 222.7,131.7 223.3,131.7 224.0,131.7 224.7,131.7 225.3,131.7 226.0,131.7 226.7,131.7 227.3,131.7 228.0,131.7 228.7,131.7 229.3,131.7 230.0,131.7 230.7,131.7 231.3,131.7 232.0,131.7 232.7,131.7 233.3,131.7 234.0,131.7 234.7,131.7 235.3,131.7 236.0,131.7 236.7,131.7 237.3,131.7 238.0,131.7 238.7,131.7 239.3,131.7 240.0,131.6 240.7,131.3 241.3,131.0 242.0,130.6 242.7,130.3 243.3,129.9 244.0,129.6 244.7,129.2 245.3,128.9 246.0,128.5 246.7,128.2 247.3,127.8 248.0,127.5 248.7,127.1 249.3,126.7 250.0,126.4 250.7,126.0 251.3,125.6 252.0,125.3 252.7,124.9 253.3,124.5 254.0,124.1 254.7,123.8 255.3,123.4 256.0,123.1 256.7,122.7 257.3,122.3 258.0,121.9 258.7,121.6 259.3,121.2 260.0,120.8 260.7,120.4 261.3,120.1 262.0,119.7 262.7,119.4 263.3,119.0 264.0,118.6 264.7,118.2 265.3,117.9 266.0,117.5 266.7,117.2 267.3,116.8 268.0,116.5 268.7,116.1 269.3,115.8 270.0,115.4 270.7,115.1 271.3,114.7 272.0,114.3 272.7,114.1 273.3,113.7 274.0,113.4 274.7,113.0 275.3,112.7 276.0,112.4 276.7,112.2 277.3,111.9 278.0,111.6 278.7,111.4 279.3,111.2 280.0,111.0 280.7,110.7 281.3,110.6 282.0,110.5 282.7,110.5 283.3,110.5 284.0,110.5 284.7,110.5 285.3,110.5 286.0,110.5 286.7,110.5 287.3,110.5 288.0,110.5 288.7,110.5 289.3,110.5 290.0,110.5 290.7,110.5 291.3,110.5 292.0,110.5 292.7,110.5 293.3,110.5 294.0,110.5 294.7,110.5 295.3,110.5 296.0,110.5 296.7,110.5 297.3,110.5 298.0,110.5 298.7,110.5 299.3,110.5 300.0,110.4 300.7,110.1 301.3,109.7 302.0,109.4 302.7,109.0 303.3,108.7 304.0,108.3 304.7,108.0 305.3,107.6 306.0,107.3 306.7,106.9 307.3,106.6 308.0,106.2 308.7,105.8 309.3,105.5 310.0,105.1 310.7,104.7 311.3,104.4 312.0,104.0 312.7,103.7 313.3,103.3 314.0,102.9 314.7,102.5 315.3,102.2 316.0,101.8 316.7,101.5 317.3,101.0 318.0,100.7 318.7,100.3 319.3,100.0 320.0,99.5 320.7,99.2 321.3,98.8 322.0,98.5 322.7,98.1 323.3,97.7 324.0,97.3 324.7,97.0 325.3,96.6 326.0,96.3 326.7,95.9 327.3,95.6 328.0,95.2 328.7,94.9 329.3,94.5 330.0,94.2 330.7,93.8 331.3,93.5 332.0,93.1 332.7,92.8 333.3,92.5 334.0,92.1 334.7,91.8 335.3,91.5 336.0,91.2 336.7,90.9 337.3,90.6 338.0,90.3 338.7,90.1 339.3,89.9 340.0,89.7 340.7,89.5 341.3,89.3 342.0,89.3 342.7,89.2 343.3,89.2 344.0,89.2 344.7,89.2 345.3,89.2 346.0,89.2 346.7,89.2 347.3,89.2 348.0,89.2 348.7,89.2 349.3,89.2 350.0,89.2 350.7,89.2 351.3,89.2 352.0,89.2 352.7,89.2 353.3,89.2 354.0,89.2 354.7,89.2 355.3,89.2 356.0,89.2 356.7,89.2 357.3,89.2 358.0,89.2 358.7,89.2 359.3,89.2 360.0,89.1 360.7,88.9 361.3,88.5 362.0,88.1 362.7,87.8 363.3,87.4 364.0,87.1 364.7,86.7 365.3,86.4 366.0,86.0 366.7,85.7 367.3,85.3 368.0,85.0 368.7,84.6 369.3,84.2 370.0,83.9 370.7,83.5 371.3,83.1 372.0,82.8 372.7,82.4 373.3,82.0 374.0,81.6 374.7,81.3 375.3,80.9 376.0,80.6 376.7,80.2 377.3,79.8 378.0,79.4 378.7,79.1 379.3,78.7 380.0,78.3 380.7,77.9 381.3,77.6 382.0,77.2 382.7,76.9 383.3,76.5 384.0,76.1 384.7,75.7 385.3,75.4 386.0,75.0 386.7,74.7 387.3,74.3 388.0,74.0 388.7,73.6 389.3,73.3 390.0,72.9 390.7,72.6 391.3,72.2 392.0,71.9 392.7,71.6 393.3,71.2 394.0,70.9 394.7,70.5 395.3,70.2 396.0,69.9 396.7,69.7 397.3,69.4 398.0,69.1 398.7,68.9 399.3,68.7 400.0,68.5 400.7,68.2 401.3,68.1 402.0,68.0 402.7,68.0 403.3,68.0 404.0,68.0 404.7,68.0 405.3,68.0 406.0,68.0 406.7,68.0 407.3,68.0 408.0,68.0 408.7,68.0 409.3,68.0 410.0,68.0 410.7,68.0 411.3,68.0 412.0,68.0 412.7,68.0 413.3,68.0 414.0,68.0 414.7,68.0 415.3,68.0 416.0,68.0 416.7,68.0 417.3,68.0 418.0,68.0 418.7,68.0 419.3,68.0 420.0,67.9 420.7,67.6 421.3,67.2 422.0,66.9 422.7,66.5 423.3,66.2 424.0,65.8 424.7,65.5 425.3,65.1 426.0,64.8 426.7,64.4 427.3,64.1 428.0,63.7 428.7,63.3 429.3,63.0 430.0,62.6 430.7,62.2 431.3,61.9 432.0,61.5 432.7,61.2 433.3,60.8 434.0,60.4 434.7,60.0 435.3,59.7 436.0,59.3 436.7,59.0 437.3,58.5 438.0,58.2 438.7,57.8 439.3,57.5 440.0,57.0 440.7,56.7 441.3,56.3 442.0,56.0 442.7,55.6 443.3,55.2 444.0,54.9 444.7,54.5 445.3,54.1 446.0,53.8 446.7,53.4 447.3,53.1 448.0,52.7 448.7,52.4 449.3,52.0 450.0,51.7 450.7,51.3 451.3,51.0 452.0,50.6 452.7,50.3 453.3,50.0 454.0,49.6 454.7,49.3 455.3,49.0 456.0,48.7 456.7,48.4 457.3,48.1 458.0,47.8 458.7,47.6 459.3,47.4 460.0,47.2 460.7,47.0 461.3,46.8 462.0,46.8 462.7,46.7 463.3,46.7 464.0,46.7 464.7,46.7 465.3,46.7 466.0,46.7 466.7,46.7 467.3,46.7 468.0,46.7 468.7,46.7 469.3,46.7 470.0,46.7 470.7,46.7 471.3,46.7 472.0,46.7 472.7,46.7 473.3,46.7 474.0,46.7 474.7,46.7 475.3,46.7 476.0,46.7 476.7,46.7 477.3,46.7 478.0,46.7 478.7,46.7 479.3,46.7 480.0,46.6 480.7,46.3 481.3,46.0 482.0,45.6 482.7,45.3 483.3,44.9 484.0,44.6 484.7,44.2 485.3,43.9 486.0,43.5 486.7,43.2 487.3,42.8 488.0,42.5 488.7,42.1 489.3,41.7 490.0,41.4 490.7,41.0 491.3,40.6 492.0,40.3 492.7,39.9 493.3,39.6 494.0,39.1 494.7,38.8 495.3,38.4 496.0,38.1 496.7,37.7 497.3,37.3 498.0,36.9 498.7,36.6 499.3,36.2 500.0,35.8 500.7,35.4 501.3,35.1 502.0,34.7 502.7,34.4 503.3,34.0 504.0,33.6 504.7,33.2 505.3,32.9 506.0,32.5 506.7,32.2 507.3,31.8 508.0,31.5 508.7,31.1 509.3,30.8 510.0,30.4 510.7,30.1 511.3,29.7 512.0,29.3 512.7,29.1 513.3,28.7 514.0,28.4 514.7,28.0 515.3,27.7 516.0,27.4 516.7,27.2 517.3,26.9 518.0,26.6 518.7,26.4 519.3,26.2" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+          <g font-size="10" fill="var(--muted)">
+            <text x="34" y="194" text-anchor="end">0</text><text x="34" y="151" text-anchor="end">12</text><text x="34" y="109" text-anchor="end">24</text>
+            <text x="34" y="66" text-anchor="end">36</text><text x="34" y="24" text-anchor="end">48</text>
+            <text x="40" y="206" text-anchor="middle">0°</text><text x="280" y="206" text-anchor="middle">360°</text><text x="520" y="206" text-anchor="middle">720°</text>
+            <text x="280" y="224" text-anchor="middle">crank angle</text>
+            <text x="48" y="14">frame x, mm (push-only solve, 1° steps)</text>
+            <text x="300" y="178" fill="var(--ink)">p 6: 6 mm per blade, then dwell</text>
+            <text x="300" y="164" fill="var(--bad)">p 5 at d 2.0: 17 jams (wedge)</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <figcaption>This is the prototype. The left panel shows the movement 84 drive as it was actually solved. The right panel shows frame travel against crank angle, re-run for this page with <code>study_2d.cam_shape</code> and <code>rack</code>. A single case takes well under a second: two 3-rev runs plus a neutral-gap scan measured 0.53 s CPU. Clean steps and dwells mean the mechanism works. A ramp or a vertical jump would mean it doesn't. <span class="ev m">measured</span> 2D</figcaption>
+  </figure>
+
+  <h3 id="ranked">Ranked proposals</h3>
+  <p>Ranked by payoff per unit of effort. Payoff is the time the day's journals show the tool would have saved. Effort is my estimate for one agent working in this repo (S ≈ half a day, M ≈ 1-2 days, L ≈ 3-5 days). That's an opinion, not a measurement.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th class="num">#</th><th>Proposal</th><th>CLI</th><th>Would have saved</th><th>Effort</th><th>Outputs</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>Concept card + sketch precondition</td><td><code>forge concept</code></td><td>rack-frame v1/v2 (3 h 20 m); the automaton architecture change at 02:02</td><td><span class="pill s">S</span></td><td><span class="ev h">heuristic</span> completeness</td></tr>
+        <tr><td class="num">2</td><td>Shaft and pin screen with Kt and the plate-rule conflict</td><td><code>forge screen shaft</code></td><td>automaton R7 (~11 h); three crank shoulder loops</td><td><span class="pill s">S</span></td><td><span class="ev e">estimated</span></td></tr>
+        <tr><td class="num">3</td><td>Envelope and stack budget</td><td><code>forge budget</code></td><td>rack-frame's 120 vs 140 mm surprise; the automaton shaft growing the stack</td><td><span class="pill s">S</span></td><td><span class="ev m">measured</span> / <span class="ev h">heuristic</span></td></tr>
+        <tr><td class="num">4</td><td>2D kinematic and contact sketch</td><td><code>forge sketch</code></td><td>rack-frame (the whole v3 drive came from it); gear validation where MuJoCo stalls</td><td><span class="pill mm">M-L</span></td><td><span class="ev m">measured</span> 2D</td></tr>
+        <tr><td class="num">5</td><td>Snap screen (felt rule, across-layer, root Kt)</td><td><code>forge screen snap</code></td><td>the snapbox test print; detent FEA at 1.7× beam theory</td><td><span class="pill s">S</span></td><td><span class="ev e">estimated</span></td></tr>
+        <tr><td class="num">6</td><td>FEA job lock, preflight, local convergence</td><td><code>forge sim --queue</code></td><td>7 timeout and crash incidents, each a 30-35 min wait plus a rerun</td><td><span class="pill s">S</span></td><td>infrastructure</td></tr>
+        <tr><td class="num">7</td><td>PRBM force-deflection for compliant parts</td><td><code>forge prbm</code></td><td>gator v1-v6 FEA sizing loops (~1.5 h)</td><td><span class="pill mm">M</span></td><td><span class="ev e">estimated</span></td></tr>
+        <tr><td class="num">8</td><td>Seam map vs strain hotspots</td><td><code>forge seam</code></td><td>three projects' hand G-code scripts</td><td><span class="pill mm">M</span></td><td><span class="ev m">measured</span></td></tr>
+        <tr><td class="num">9</td><td>Deflected-flexure clearance</td><td><code>forge fit --deflected</code></td><td>the frog finger cavity found by hand</td><td><span class="pill mm">M</span></td><td><span class="ev e">estimated</span> (FEA field)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="proposals">
+
+    <article class="prop lead">
+      <div class="head"><span class="rank">#4 · the centrepiece tool</span><h3>forge sketch: 2D kinematic and contact studies</h3></div>
+      <div class="meta"><span class="pill mm">effort M-L</span><span class="pill hi">payoff highest for mechanisms</span><span class="ev m">measured</span></div>
+      <p>Generalise <code>study_2d.py</code> into a library and a stage. A project gets an optional <code>sketch.py</code> that returns a <code>forge.sketch.Study</code>: shapely profiles from a primitive library, joints, a driver, and tolerance parameters to vary. The solver steps the driver. Each follower is either pushed along its free DOF until clear (push-only, as in the prototype, using bisection instead of 0.02 mm increments), or placed by closed-form loop closure (linkages), or allowed to fall back under gravity (cam followers). <code>design.py</code> then imports the same profiles and extrudes them, so the mechanism that was solved is the one that gets built. v3 already did this by hand: "Drive re-solved with study_2d.cam_shape".</p>
+      <div class="cols">
+        <div>
+          <span class="k">CLI shape</span>
+<pre>forge sketch rack-frame                   # all studies, nominal + extremes
+forge sketch rack-frame --study drive \
+     --vary depth=0.9,1.6,2.0 --reverse
+forge sketch new geneva --slots 4 --pin-r 2
+forge sketch rack-frame --svg             # build/sketch/drive.svg (animated)</pre>
+          <span class="k">Primitives (first cut)</span>
+          <ul>
+            <li><code>blade_cam</code>, <code>sawtooth_rack</code> (from study_2d)</li>
+            <li><code>involute_sector</code>, <code>straight_rack</code> (mutilated pinion; bd_warehouse profile)</li>
+            <li><code>ratchet</code> + <code>pawl</code> (pawl as a PRBM spring)</li>
+            <li><code>geneva</code>, <code>pin_slot</code>, <code>four_bar</code>, <code>slider_crank</code></li>
+            <li><code>cam_follower</code> (flat, knife, roller; gravity return)</li>
+          </ul>
+        </div>
+        <div>
+          <span class="k">Outputs → build/results/sketch.json</span>
+          <ul>
+            <li>Travel per rev, and advance per driver pass binned by blade or tooth index. The prototype's run-length metric must go.</li>
+            <li>Dwell fraction; jams (overlap not resolvable along the free DOF = wedge); runaway (advance &gt; 1.3 × pitch).</li>
+            <li>Minimum clearance per pair over the cycle, neutral gap, and re-entry capture range.</li>
+            <li>Contact normal angle → with μ = 0.3, the force ratio pushed into each constraint (e.g. vertical load on A's detent). <span class="ev e">estimated</span></li>
+            <li>The swept 2D envelope, fed to <code>forge budget</code>.</li>
+            <li>An animated SVG for studio's Assembly mode and a front-elevation silhouette for the critic.</li>
+          </ul>
+        </div>
+      </div>
+      <div>
+        <span class="k">Acceptance tests (from the day's incidents)</span>
+        <ol>
+          <li>Rack-frame drive R 7, p 6, tb 2.0: 24.0 ± 0.1 mm/rev and 4 advances of 6.0 ± 0.1 mm per rev, 0 jams, at d = 0.9, 1.6 and 2.0.</li>
+          <li>Known-bad: R 7, p 5, d 2.0 must report a jam. R 8, p 5, d 1.6 must report runaway (40 mm/rev).</li>
+          <li>Neutral gap R 7, p 6, c 1.0 = 1.00 ± 0.01 mm (prototype: 1.002).</li>
+          <li>Reverse crank on the v3 drive: no mid-travel jam, and a stall at the hand stop (journal 07:18).</li>
+          <li>114: z 15, N 5 stub teeth give contact ratio 1.28 and ≥ 3.28 mm to the idle rack. Known-bad: z 12-14 with 4-5 full-depth teeth engages both racks (lock).</li>
+          <li>Analytic: a 4-slot Geneva dwells 270°. A four-bar matches closed-form loop closure within 0.01 mm. Grashof classification is correct.</li>
+          <li>Each study runs in under 5 s, and the result goes stale when <code>sketch.py</code> or <code>spec.yaml</code> changes.</li>
+        </ol>
+      </div>
+    </article>
+
+    <article class="prop">
+      <div class="head"><span class="rank">#1</span><h3>Concept card and the sketch precondition</h3></div>
+      <div class="meta"><span class="pill s">effort S</span><span class="ev h">heuristic</span></div>
+      <p>This turns <code>mechanism.md</code> into a template and a check. The card has five required blocks: a DOF table (part, free, held by), a free-body diagram as a force list with magnitudes, a budget, the studies, and the screens. It ends with <b>rule conflicts</b>: places where a needed feature fights a user rule. The automaton shoulder fillet against <code>bed_edge</code> is the example that would have surfaced at concept. The ~140 mm width against 120 is another, and the user resolved it in one message once the number existed.</p>
+      <div class="cols">
+        <div><span class="k">CLI shape</span>
+<pre>forge concept rack-frame --init   # writes concept.md from spec R-numbers
+forge concept rack-frame          # validates → results/concept.json</pre>
+        <span class="k">Skill change</span>
+        <ul><li>Phase 1 ends with a current <code>concept.json</code>. The lead doesn't dispatch forge-designer for <code>design.py</code> without it, and <code>forge build</code> lists a missing card as a FAIL row (not a gate, never in <code>approvals.json</code>).</li>
+        <li>For reference reproductions (rack-frame, 114), the engraving checklist moves onto the card.</li></ul></div>
+        <div><span class="k">Acceptance tests</span>
+        <ol><li>Rack-frame v2's state (solve present, no DOF or width) fails the card with "budget missing".</li>
+        <li>A card whose budget exceeds the spec R1 envelope fails and names the overrun.</li>
+        <li>A card with an unresolved rule conflict passes only when the conflict is listed with a decision.</li>
+        <li>Editing <code>sketch.py</code> makes <code>concept.json</code> stale.</li>
+        <li>Designs with no <code>Motion</code> and no flex LoadCase (snapbox-type boxes) don't need a card.</li></ol></div>
+      </div>
+    </article>
+
+    <article class="prop">
+      <div class="head"><span class="rank">#2</span><h3>forge screen shaft: sections with Kt, before CAD</h3></div>
+      <div class="meta"><span class="pill s">effort S</span><span class="ev e">estimated</span></div>
+      <p>Bending plus torsion on a named section (round, D-flat, triple-flat, rounded square), with Peterson-style Kt for the shoulder fillet, SF in XY and Z from the print orientation, and the <b>minimum fillet for the target SF</b>. If that fillet lands in the bottom 2 mm at the plate, the screen reports the conflict and lists the escapes the journals found: lofted flare, larger section, purchased D-rod, or moving the shoulder off the bed plane. Automaton spent the day on this exact question.</p>
+      <div class="cols">
+        <div><span class="k">CLI shape</span>
+<pre>forge screen shaft --section rsquare:4.6,r0.8 \
+   --M 130 --T 95 --shoulder D=12,r=0.35 \
+   --orient lying --sf 2
+forge screen shaft automaton --from-loadcase crank_push</pre></div>
+        <div><span class="k">Acceptance tests</span>
+        <ol><li>Automaton 4.6 mm square, M 130, T 95: nominal VM 11 ± 1.5 MPa and SF about 4 (journal hand calc 06:57, converged stub 8.5-8.9 MPa at 07:21).</li>
+        <li>Same section with a sharp shoulder (r → 0): FAIL, "Kt unbounded, fillet required".</li>
+        <li>r 0.35 (r/d 0.076): Kt_b about 2.0, SF 2.2-2.4 (journal estimate 07:21).</li>
+        <li>A fillet in the bed zone is reported as a <code>bed_edge</code> conflict.</li>
+        <li>A pin printed upright (the gator's Ø3 × 9 warning) uses the Z strength.</li></ol></div>
+      </div>
+    </article>
+
+    <article class="prop">
+      <div class="head"><span class="rank">#3</span><h3>forge budget: swept envelope and Z stack</h3></div>
+      <div class="meta"><span class="pill s">effort S</span><span class="ev m">measured</span> from sketch · <span class="ev h">heuristic</span> from formulas</div>
+      <p>The spec gets a <code>budget:</code> block: width terms like <code>2F + 6T + 2(gap + bearing)</code> from <code>mechanism.md</code> §4b, and a Z stack (desk clearance, shaft, cams, deck). Every Z value is snapped to the 0.2 mm grid. With a sketch present, the 2D swept extents replace the formula terms. The point is to put the 140 mm number in front of the user at concept time instead of at v2.</p>
+      <div class="cols">
+        <div><span class="k">CLI shape</span>
+<pre>forge budget rack-frame          # width/height/depth vs R1
+forge budget automaton --what-if shaft_d=6.5</pre></div>
+        <div><span class="k">Acceptance tests</span>
+        <ol><li>Rack-frame T 12: 138-146 mm (later measured sweep: 143.8 / 144.0). T 6: 100-110 mm.</li>
+        <li>An off-grid Z (e.g. 0.3) is flagged with its nearest layer multiple.</li>
+        <li>Automaton <code>--what-if shaft_d=6.5</code> reports the stack growth the 10:56 note feared ("cams and stack grow").</li></ol></div>
+      </div>
+    </article>
+
+    <article class="prop">
+      <div class="head"><span class="rank">#5</span><h3>forge screen snap: the felt rule in one command</h3></div>
+      <div class="meta"><span class="pill s">effort S</span><span class="ev e">estimated</span></div>
+      <p>Extend <code>forge flex cantilever</code>. Today it knows no engagement, no clearance, no across-layer factor (<code>strain_allow_z_factor</code> lives only in <code>fea.py</code>) and no root concentration. Add lip, gap, catch angle, root radius and bend plane. Report engagement, the push window, strain against the in-layer or across-layer allowance, and a root Kt. Calibrate Kt against the journal's closed-form vs FEA pairs and store them as fixtures.</p>
+      <div class="cols">
+        <div><span class="k">CLI shape</span>
+<pre>forge screen snap --L 16 --t 1.6 --b 14 \
+   --lip 1.2 --gap 0.2 --angle 45 --root-r 2 \
+   --plane in --use repeated</pre></div>
+        <div><span class="k">Acceptance tests</span>
+        <ol><li>Snapbox v2 (lip 0.6, gap 0.2): engagement 0.4 → "not felt" FAIL, whatever the force.</li>
+        <li>Rack-frame pedestal latch: flags t 1.6 as marginal against the 5 N floor (FEA gave 4.55 N), and t 1.8 passes (journal 07:18).</li>
+        <li>Across-layer bending uses 0.6 × the allowance.</li>
+        <li>Calibration: the rack-frame detent (FEA about 1.7× beam theory at the root, journal 04:52) and snapbox v1 (beam 0.84%, BC-corrected FEA 1.49%) both fall inside the screen's stated band once root Kt is applied. If they don't, the band is widened and recorded.</li></ol></div>
+      </div>
+    </article>
+
+    <article class="prop">
+      <div class="head"><span class="rank">#7</span><h3>forge prbm: compliant mechanisms as springs and pivots</h3></div>
+      <div class="meta"><span class="pill mm">effort M</span><span class="ev e">estimated</span></div>
+      <p>Use the pseudo-rigid-body model (Howell): a short flexure is a pin with a torsion spring K = γ K<sub>Θ</sub> EI / L (γ ≈ 0.85, K<sub>Θ</sub> ≈ 2.65), and a long one is a 1R or 2R chain. This gives a force-deflection curve, stored energy and stop angle in milliseconds, plus a strain estimate with curved-beam correction for U-turns. It fills the gap between <code>forge flex</code> (small deflection) and nonlinear FEA (minutes per run, timeouts). The gator designer already hand-computed the hinge stiffness (184 N·mm/rad), then ran six FEA loops to find the force and opening. When an FEA curve exists, the plot overlays it so the gap is visible.</p>
+      <div class="cols">
+        <div><span class="k">CLI shape</span>
+<pre>forge prbm gator-clip --topology clothespin \
+   --hinge L=26,t=1.9,b=9 --arm 30 --theta 0.38
+forge prbm jumping-frog --topology c-spring \
+   --strip t=2.0,R=4 --press 6.35 --curve</pre></div>
+        <div><span class="k">Acceptance tests</span>
+        <ol><li>Jumping frog C-spring: within ±25% of the full-run FEA, 4.87 N at 6.35 mm, 16.2 mJ (journal 04:07).</li>
+        <li>Gator v4 geometry: open force within ±25% of 6.16 N at 0.380 rad (journal 05:50).</li>
+        <li>Small-angle limit equals <code>forge flex hinge</code> within 5%.</li>
+        <li>The output is labelled estimated, with "confirm with a nonlinear LoadCase".</li></ol></div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<section aria-labelledby="ops">
+  <h2 id="ops">Other fixes that stop late discoveries</h2>
+  <div class="proposals">
+    <article class="prop">
+      <div class="head"><span class="rank">#6</span><h3>FEA job lock, preflight and local convergence</h3></div>
+      <div class="meta"><span class="pill s">effort S</span></div>
+      <ul>
+        <li>Use a machine-wide ccx semaphore (one solve per 8 threads, queued with a visible wait), so parallel projects don't push each other past the 1800 s limit.</li>
+        <li>Make the gator's ad-hoc preflight standard: a linear solve at 0.65× mesh first, which fails fast on inverted tets before the nonlinear pass.</li>
+        <li>Refine only inside <code>refine</code> regions during convergence (rack-frame 08:42 found the whole cam meshed fine, a 54 MB deck), with a node budget that rejects a run above about 300k nodes instead of letting it die at 483k.</li>
+        <li>Snapshot <code>forge/data</code> into the build at run start, so a mid-run rules edit by another session doesn't make the run stale.</li>
+      </ul>
+      <p><span class="k">Acceptance:</span> two concurrent <code>forge run</code> calls finish without timeouts. A sliver fixture fails in preflight in under 60 s. Editing <code>rules.yaml</code> during a run doesn't stop it, and the next build picks the change up.</p>
+    </article>
+    <article class="prop">
+      <div class="head"><span class="rank">#8</span><h3>forge seam: put the scratch scripts in the toolkit</h3></div>
+      <div class="meta"><span class="pill mm">effort M</span><span class="ev m">measured</span></div>
+      <p>Parse outer-wall start points per layer from the plate G-code, map them back to each part's frame through the 3MF item transform (the arranger rotated the gator 53° and normalised A's rotation), and report seams within 1 mm of snap roots, FEA peak nodes and declared contact faces. A pre-slice prediction is harder and less trustworthy. Verify after slicing, which is cheap and exact.</p>
+      <p><span class="k">Acceptance:</span> it reproduces 114's <code>HANDBACK.md</code> table (post seams 39/39 on the V-notch). Known-bad: the pre-fix rack-frame crank shows 23/23 layers on the snap root, and the gator under <code>back</code> shows 43 mouth seams.</p>
+    </article>
+    <article class="prop">
+      <div class="head"><span class="rank">#9</span><h3>Deflected-flexure clearance</h3></div>
+      <div class="meta"><span class="pill mm">effort M</span><span class="ev e">estimated</span></div>
+      <p>The sim npz already holds nodes and U. Deform the surface mesh at peak deflection and run the fit stage's distance check against the rest of the part and its partner. That covers the automaton frog finger, whose cavity was found by hand (1.0 → 1.7), and the rack-frame drag leaf that "ran into A's crown".</p>
+      <p><span class="k">Acceptance:</span> the automaton frog_1 finger with a 1.0 mm cavity reports contact (0.1-0.36 mm short), and the 1.7 mm cavity passes.</p>
+    </article>
+    <article class="prop">
+      <div class="head"><span class="rank">·</span><h3>Process changes (no code)</h3></div>
+      <ul>
+        <li><b>Hand-backs:</b> make a <code>HANDBACK.md</code> per pass standard (114 already did it), and continue designers with SendMessage instead of replacing them, so context survives a stop.</li>
+        <li><b>Critic at concept:</b> give forge-critic the sketch's front-elevation SVG next to the reference. "Reads as a knob" costs a minute at that point.</li>
+        <li><b>Physics scope:</b> keep MuJoCo for gravity-returned followers, where it's validated (e·ω² = g). Validate tooth drives with <code>forge sketch</code> and stop trying to fix hulls.</li>
+        <li><b>Investigate</b> orient <code>sf_min</code> against sim SF on 114 before the strength-aware orient carries weight in the ranking.</li>
+        <li><b>Docs:</b> the README says three gates; it has been one since 05:15.</li>
+      </ul>
+    </article>
+  </div>
+</section>
+
+<section aria-labelledby="sources">
+  <h2 id="sources">Sources</h2>
+  <div class="sources">
+    <span><code>CLAUDE.md</code>, <code>README.md</code>, <code>.claude/skills/forge/SKILL.md</code>, <code>.claude/agents/*.md</code></span>
+    <span><code>forge/stages.py</code> (<code>_current</code>), <code>forge/sim/fea.py</code> (<code>run_ccx</code> timeout 1800, OMP 8), <code>forge/sim/flexure.py</code>, <code>forge/motion.py</code>, <code>forge/slicer.py</code>, <code>forge/orient.py</code></span>
+    <span><code>tests/test_fea_validation.py</code>, <code>tests/test_checks_fail.py</code> (18 tests)</span>
+    <span><code>projects/{snapbox,automaton,automaton-a,automaton-b,rack-frame,mutilated-pinion,jumping-frog,gator-clip}/journal.md</code></span>
+    <span><code>projects/rack-frame/mechanism.md</code>, <code>study_2d.py</code>, <code>study_2d.json</code> (24 rows); <code>projects/mutilated-pinion/HANDBACK.md</code></span>
+    <span><code>.venv/bin/forge status</code> for each project, and <code>forge flex --help</code>, run 2026-11-15</span>
+    <span>The re-run figure uses <code>study_2d.cam_shape</code> and <code>rack</code> imported read-only. <code>study_2d.json</code> wasn't rewritten.</span>
+  </div>
+</section>
+</main>

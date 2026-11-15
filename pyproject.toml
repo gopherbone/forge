@@ -1,0 +1,29 @@
+[project]
+name = "forge"
+version = "0.1.0"
+description = "Verifiable design-for-print pipeline: CAD -> checks -> FEA -> slice -> review -> gated release (Bambu Lab X1C)"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "build123d>=0.9", "trimesh>=4", "manifold3d", "numpy", "scipy", "shapely", "rtree",
+  "networkx", "gmsh>=4.11", "meshio", "pyvista>=0.43", "matplotlib", "imageio",
+  "rich", "pyyaml", "bd_warehouse", "mujoco", "coacd",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+forge = "forge.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["forge*"]
+
+[tool.setuptools.package-data]
+forge = ["data/*.yaml", "templates/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,83 @@
+# Jumping Frog: design spec.
+title: Jumping Frog
+summary: >
+  A single-part, printable jumping frog. Press its back down and slide your finger off: a hind-leg
+  spring tucked under the body kicks it into the air. Simple, clever, minimal: a crisp extruded
+  side-profile silhouette, printed ON ITS SIDE so every curve is a vertical wall and the spring bends
+  in the print plane (along the layers, PETG's strong direction).
+
+requirements:
+  - id: R1
+    text: "One printed part, no assembly, no supports, prints in ≤ 20 min"
+    verify: "check + slice"
+  - id: R2
+    text: "Reads as a frog at a glance from the side: simple bold silhouette (body, head, eye, hind leg); no domes or rounded up-facing surfaces"
+    verify: "check (up_curves) + human"
+  - id: R3
+    text: "Hind-leg spring survives repeated full compression: peak strain under the repeated-use allowance (in-layer bending)"
+    verify: "sim:spring"
+  - id: R4
+    text: "Stores enough energy to jump: estimated hop height ≥ 30 mm (energy × ~0.3 efficiency / weight)"
+    verify: "sim:spring (energy) + human"
+  - id: R5
+    text: "Compression stops on a hard stop before the spring is over-strained (the body bottoms out on the foot)"
+    verify: "check (geometry) + sim:spring"
+  - id: R6
+    text: "Stretch goal, only if it stays simple: a self-latching catch holds the frog cocked until you tap its tail"
+    verify: human
+
+loads:
+  - "A fingertip presses the frog's back down until the stop (a few newtons)"
+
+material: PETG
+cosmetic: "Both side faces (the silhouette) are the show faces. One prints on the textured plate, the other faces up."
+constraints:
+  - "Palm-sized: 35-55 mm long"
+  - "Single colour, single part"
+  - "All FDM footguns and user style rules in CLAUDE.md: zero supports, vertical walls at the plate, no up-facing rounds, simple and minimal"
+
+open_questions: []
+
+params:
+  length: 45          # snout tip to the back of the hind-leg spring
+  width: 12           # extrusion depth (print height when lying on its side)
+  # hind-leg spring: a C-strip (two half-arcs joined by a straight back) from the rump down to the foot
+  spring_t: 2.0       # strip thickness, in the print plane: prints as 2 loops per side + gap-fill core = solid
+  spring_r: 4.0       # centreline radius of the two bends
+  spring_h: 7.5       # straight vertical run between the bends (adds arc length = travel and energy)
+  root_r: 2.0         # concave fillet where the strip joins body and foot
+  # hind foot (sole) on the table: a webbed foot whose front has V toe notches
+  sole_t: 3.0         # foot thickness
+  sole_ramp: 4.0      # foot rear ramps from the strip up to the full thickness over this length
+  sole_end: 30        # x of the foot's front tip
+  toe_notches: 2      # V notches cut down into the front of the foot (3 toes)
+  toe_pitch: 2.0      # spacing of the toe notches back from the tip
+  toe_notch_d: 1.4    # notch depth (from the foot's top)
+  toe_notch_w: 1.0    # notch width at the top (leaves 1 mm toe tips, rounded R0.45)
+  # front leg, raked forward; its flat toe bottoms out on the foot (the hard stop)
+  leg_x: 16.5         # x where the leg's raked rear edge leaves the belly
+  leg_w: 5.0          # toe length (the stop face)
+  leg_lean: 3.5       # rake: the toe sits this far forward of where the rear edge leaves the belly
+  stop_gap: 5.5       # gap from the front toe to the foot at rest = travel to the hard stop
+  press_travel: 5.8   # imposed on the finger line in FEA; set so the toe just reaches the foot (see journal)
+  # body and head silhouette (heights above the body underside)
+  belly_drop: 2.5     # belly sags this far below the spring's top leg, forward of the spring
+  back_h: 9.0         # flat back (the finger land)
+  knee_r: 2.5         # knee: a half-round ridge at the rear of the back; the finger drops off it behind the rump
+  head_len: 9.0       # snout tip back to the eye ring's front
+  head_h: 11.5        # forehead
+  snout_h: 8.0        # top of the snout tip
+  chin_h: 2.0         # snout tip bottom (the chin slopes up to it)
+  corner_r: 2.0       # silhouette corner radius
+  eye_d: 5.0          # eye: through-hole
+  eye_wall: 2.0       # ring round the eye (bump on the head)
+  mouth_w: 1.0        # smile slit width (through, closed at both ends)
+  mouth_len: 7.5      # smile length
+  mouth_inset: 1.5    # smile ends this far inside the snout tip (no thin lower-lip sliver)
+
+printer:
+  machine: "Bambu Lab X1 Carbon 0.4 nozzle"
+  process: "0.20mm Standard @BBL X1C"
+  bed_type: "Textured PEI Plate"
+  overrides:
+    wall_loops: 3

@@ -1,0 +1,126 @@
+# Gator Clip: design spec.
+title: Gator Clip
+summary: >
+  An alligator-themed roach clip: one printed PETG part whose jaws are a normally-closed clip.
+  Squeeze to open the mouth, release to grip. The spring is a compliant mechanism built into the
+  body (no assembly, no metal spring). Style reference from the user: Sanrio's "Big Challenges", a
+  flat side-view cartoon alligator. Use its design LANGUAGE for our own original gator, not a tracing.
+
+style_reference: >
+  As shown by the user: a flat, side-on silhouette. A long, low WEDGE snout with the jaws as two
+  long triangles opening forward; chunky TRIANGULAR teeth spaced along both jaws (white in the
+  drawing). Two round EYE BUMPS sitting up on top of the head, each with a dot pupil. Along the back
+  a row of rounded SCALLOPED ridges (~5) that shrink toward a long POINTED TAIL. Four short, straight
+  STUBBY LEGS with little toe notches. Thick, friendly outline proportions, flat colour. The drawing's
+  open triangular mouth is the clip: the clip rests nearly closed and opens into that triangle.
+
+requirements:
+  - id: R1
+    text: "One printed part, no assembly, no supports, printed on its side (all flexures bend in the print plane); prints in ≤ 25 min"
+    verify: "check + slice"
+  - id: R2
+    text: "Normally closed: jaws rest with ≤ 0.6 mm gap (printable minimum) and grip a Ø4-8 mm paper filter end with 1-4 N clamping force"
+    verify: "sim:open + human"
+  - id: R3
+    text: "Squeeze to open: a comfortable thumb-and-finger squeeze of 5-15 N opens the jaws to ≥ 9 mm"
+    verify: "sim:open"
+  - id: R4
+    text: "Flexures survive repeated opening: peak strain ≤ 0.8 of the repeated-use allowance at full opening, with a hard stop so you can't over-squeeze"
+    verify: "sim:open + check"
+  - id: R5
+    text: "Teeth grip without shredding paper: a few chunky, blunt teeth (≥ 1.2 mm), interlocking, no sharp points"
+    verify: "human"
+  - id: R6
+    text: "Reads as a cute alligator at a glance from the side: big head, snout, dot eye, little legs or a tail curl. Simple and minimal, no domes or rounded up-facing surfaces"
+    verify: "check (up_curves) + human"
+  - id: R7
+    text: "Heat: the jaws hold the filter end only. A clear handle/tail keeps fingers 30+ mm from the jaws. PETG softens around 70-80 °C, so keep it away from the ember"
+    verify: "human"
+
+loads:
+  - "Thumb and finger squeeze the body/handle: 5-15 N to open fully"
+  - "Clamping on a Ø4-8 mm paper roll: 1-4 N"
+
+material: PETG
+cosmetic: "Both side faces are show faces (one on the textured plate, one facing up)."
+constraints:
+  - "40-70 mm long, single colour, single part"
+  - "All CLAUDE.md style rules and FDM footguns: zero supports, vertical walls at the plate, no up-facing rounds, simple and minimal, felt mechanisms"
+  - "Character design is original: kawaii style only, no copied character features or names"
+
+open_questions:
+  - "Mechanism: reverse-action tweezer-style flexure vs a squeeze-the-body diamond flexure. The designer compares both with closed-form maths before modelling."
+
+params:
+  length: 70          # tail tip (x=0) to snout tip (x=length)
+  width: 9            # extrusion depth (print height on its side); forces scale with it, strain does not
+  # stance and heights (use frame: standing on its feet, z = 0 is the table)
+  leg_h: 3.5          # stubby legs below the belly
+  bridge_t: 3.0       # forehead and throat bridges above and below the hinge window (rigid)
+  # the spring hinge: a 3-leg vertical meander in a window behind the mouth corner
+  jaw_len: 30         # snout tip to the hinge window centre (the pivot)
+  hinge_t: 1.9        # strip thickness, in-plane (~5 lines): bends along the layers
+  hinge_gap: 2.6      # slot between meander legs = U-turn inner diameter (inner R1.3; R0.6 and R1.0 were the strain hotspot)
+  hinge_clear: 1.6    # meander to window walls
+  window_h: 16.0      # window height: legs ~10.5 / 6.4 / 11.9 mm straight + two R2.25 U-turns = ~43 mm of strip
+  u_shift: 0.7        # meander sits this far above centre in its window (floor 2.3, ceiling 0.9 clear at rest; FEA: it sags ~0.8 at the stop)
+  root_r: 0.8         # concave fillet where the meander joins the bridges
+  # mouth and teeth (two long triangular jaws, interlocking blunt teeth)
+  mouth_gap: 0.6      # normal gap between the jaws at rest (printable minimum)
+  snout_h: 7.0        # jaw height at the snout tip (both jaws)
+  snout_r: 2.5        # snout tip rounding (in-plane)
+  chin_x: 8.0         # chin: lower jaw meets the flat belly this far ahead of the pivot
+  forehead_x: 10.0    # forehead: upper jaw top line meets the flat head top this far ahead of the pivot
+  teeth_start: 13.3   # first tooth this far ahead of the pivot (front upper tooth tip 27.6 mm ahead)
+  teeth_n: 3          # teeth per jaw
+  tooth_pitch: 5.2    
+  tooth_h: 2.4        # root to tip (>= 1.2, R5); interlock = tooth_h - 2v = 1.58
+  tooth_r: 0.5        # blunt tip radius
+  # squeeze tab (upper lever behind the hinge), thumb pad and hard stop
+  tab_r: 14.5         # tab rear face is an arc about the pivot (keeps its gap while it swings)
+  arc_gap: 1.5
+  thumb_b: 6.0        # thumb ridge this far behind the pivot (it sits ~12 mm above it, so the arm grows as the tab swings)
+  stop_near: 4.05     # stop slot height at the hinge window
+  stop_gap: 6.9       # stop slot height under the tab's rear corner = travel there to the hard stop
+  press_travel: 4.2   # thumb travel imposed in FEA (set so the stop just closes, see journal)
+  seat_a: 28.0        # roll seat (upper tooth tip) distance ahead of the pivot for the clamp case
+  # character
+  eye_r: 3.4          # eye bump radius (round bumps standing up on the head)
+  eye_d: 3.0          # pupil: through-hole
+  ridge_r: 2.2        # first (thumb) back ridge radius; the others shrink toward the tail
+  ridge_shrink: 0.82
+  ridges: 5
+  tail_tip_z: 4.0     # tail point height: long, low tail
+  tail_r: 1.0         # tail point rounding
+  tail_x: 24.0        # back starts sloping down into the tail here (above the hind legs)
+  belly_x: 9.0        # belly ends / tail underside starts here
+  leg_w: 4.2
+  front_leg_x: 31.5   # centre of the front leg pair (flat finger pad, no toe notches); leading edge 31.5 mm from the front tooth
+  hind_leg_x: 17.0
+  leg_pair_gap: 1.6
+  toe_w: 0.9          # toe notch width and depth
+
+  eye1_dx: 4.5        # eye bump centres relative to the pivot (x) and the head top line (z)
+  eye1_dz: 1.0
+  eye2_dx: 10.8
+  eye2_dz: 0.2
+  pupil_dx: 0.4       # pupils sit a touch forward and up in the bump: looking ahead
+  pupil_dz: 0.3
+  ridge_tail_x: 5.0   # last (smallest) ridge centre, near the tail point
+  ridge_gap: 0.6      # flat between back ridges
+  # edge finishing (all 2D, i.e. vertical edges in print)
+  body_r: 3.0         # forehead, back-to-tail, belly-to-tail and chin corners
+  inner_r: 0.8        # window corners, outer leg roots, tab top corner at the arc slot
+  edge_r: 0.4         # small breaks: snout tip mouth corners, jaw and stop-slot entries at the window
+  stop_r: 0.6         # stop contact corner and the stop floor corner
+  foot_r: 0.6         # foot corners
+  toe_r: 0.2          # toe tips between the notches
+
+printer:
+  machine: "Bambu Lab X1 Carbon 0.4 nozzle"
+  process: "0.20mm Standard @BBL X1C"
+  bed_type: "Textured PEI Plate"
+  overrides:
+    wall_loops: 3
+    seam_position: nearest       # G-code check: "back" and "aligned" put the seam in the mouth (plate arrange rotates the part 53 deg); "nearest" hides it in the eye-bump valley
+    reduce_crossing_wall: 1

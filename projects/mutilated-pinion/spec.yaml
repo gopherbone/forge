@@ -1,0 +1,148 @@
+# Mutilated Pinion Shuttle (Movement 114): design spec.
+title: Mutilated Pinion Shuttle (Movement 114)
+summary: >
+  A working desk model of movement 114 from Henry T. Brown's "507 Mechanical Movements" (1868):
+  "Uniform circular motion into reciprocating rectilinear motion, by means of mutilated pinion,
+  which drives alternately the top and bottom rack." Turn a crank continuously and the frame
+  shuttles back and forth on its own.
+  FAITHFUL FIRST: the model must read as the engraving. Any departure is justified in the journal
+  by printability or function only.
+
+reference: >
+  Engraving: reference/brown-1868-movement-114.png (from 507movements.com/mm_114.html). Described by the lead:
+  - A horizontal STADIUM (racetrack) frame: straight top and bottom bars, semicircular ends, drawn as a
+    single thick outline. From the middle of each rounded end, a straight ROD continues horizontally
+    out to the left and right (the rods neck into the frame with a smooth flare).
+  - Inside, along the inner edge of the top bar, a straight RACK with ~10 square-ish teeth pointing down.
+    Along the inner edge of the bottom bar, a matching rack with teeth pointing up. The racks are
+    parallel, and their pitch lines are one pinion pitch-diameter apart.
+  - Centred between them: a MUTILATED PINION, a small spur pinion with teeth on only part of its
+    rim (about half: the drawing shows ~5 teeth on the right side and a plain toothless arc on the
+    left). Its hub has a hatched (cut) shaft at the centre, perpendicular to the frame plane.
+  - Nothing else is drawn: no stand or bearings. The model must add the minimum (two bearing posts for
+    the rods, a support for the pinion shaft, a crank) in the same restrained engraving style.
+  Motion: while the toothed arc passes the top, it drives the top rack (frame moves one way). While
+  it passes the bottom, it drives the bottom rack (frame moves back). The toothless arc prevents both
+  racks ever being engaged at once, which would lock.
+
+requirements:
+  - id: R1
+    text: "Reads as the 1868 engraving: stadium frame, end rods, straight internal racks top and bottom, partially-toothed pinion centred. Recognisable side by side with the drawing."
+    verify: human
+  - id: R2
+    text: "One crank turn = one full shuttle cycle (out and back) with travel ≥ 15 mm each way"
+    verify: "fit:sweep + human"
+  - id: R3
+    text: "Never both racks engaged at once (no lock) and no collisions at any crank angle"
+    verify: "fit:sweep"
+  - id: R4
+    text: "Smooth hand-off at reversal: the last tooth leaves one rack before the first tooth meets the other, with ≥ 0.3 mm clearance"
+    verify: "fit:sweep"
+  - id: R5
+    text: "Frame guided by its end rods in bearing posts (sliding fit); it can't fall out or twist"
+    verify: "fit + human"
+  - id: R6
+    text: "Crank survives a 10 N push at the knob (SF ≥ 2 in print orientation)"
+    verify: "sim:crank_push"
+  - id: R7
+    text: "Support-free in PETG, single colour, walls meet the plate vertically (no rounds or chamfers on plate edges), total print ≤ 2 h"
+    verify: "check + slice"
+  - id: R8
+    text: "Runs smoothly when cranked by hand: physics shows the frame tracks the pinion without binding at 60-120 rpm"
+    verify: "human (forge physics is only validated for cam followers; use live mode to explore)"
+
+loads:
+  - "Cranking: ~10 N sideways at the knob"
+  - "Frame inertia and rod friction only"
+
+material: PETG
+cosmetic: "Front faces of the frame, pinion and posts. Raised '114' on the base, engraving-style."
+constraints:
+  - "≤ 7 parts, ≤ 2 h print, single colour"
+  - "All FDM footguns in CLAUDE.md apply"
+  - "Module ≥ 1.5 for printable teeth; tooth form may be involute or the engraving's square-ish form if it meshes reliably"
+
+open_questions: []
+
+params:
+  # ---- mesh (bd_warehouse involute pinion, straight racks). See journal: mechanism maths.
+  module: 1.5
+  teeth: 15                 # full-gear tooth count (pitch dia 22.5 = rack pitch-line spacing)
+  sector_teeth: 5           # teeth kept (odd: tooth 0 on the sector midline)
+  pressure_angle: 14.5       # period-correct, squarer flanks (study: run-off 14.35, hand-off 3.61 mm)
+  pinion_addendum: 1.2      # stub teeth (squarer, closer to the engraving; smaller tip-in-band angle)
+  rack_addendum: 0.7        # <= r sin^2(14.5) = 0.705: no root interference
+  tip_clear: 0.375          # pinion tip to rack root (0.25 m)
+  blank_clear: 0.6          # plain arc (root circle) to rack tip line
+  flank_extra: 0.02         # normal flank gap = sliding gap + this
+  half_travel: 14.63        # T: run-off 14.35 (study, 14.5 deg) + 0.28; frame moves 2T each way
+  rack_teeth: 10
+  # ---- frame (printed flat on its back, front face up)
+  frame_t: 6.0
+  pinion_t: 5.0
+  bar_w: 5.5                # outline band (engraving ~5.7 mm at scale)
+  rack_margin: 4.8          # plain straight run beyond each rack end: window 2.76:1 like the engraving
+  end_r: 7.0                # window corner radius: the engraving's ends are a rounded rectangle, not semicircles
+  rod_w: 6.0                # square rods 6 x frame_t
+  flare_r: 2.5              # concave neck where the rods meet the rounded ends
+  rod_tip_r: 1.0
+  rod_extra: 1.0            # rod still past the post's outer face at full travel
+  end_clear: 1.0            # flare to post at full travel; the post stops a coasting frame ~2.5 mm past run-off (capture < 3.6)
+  face_chamfer: 0.0         # none: a chamfer round the rounded ends is a cone (up_curves); crisp edges read better
+  # ---- posts (separate prisms, printed on their side)
+  post_t: 8.0               # along the rod
+  post_roof: 3.0
+  post_side: 2.0            # outer walls (carry the post on the plinth top)
+  prong_t: 2.1              # snap prongs: FEA 5.75 N each, strain 64% of allowable; forge flex L17 t2.1: 6.05 N, push 6.4 N each at 30 deg
+  prong_gap: 0.8            # prong to outer wall
+  prong_slit: 2.6           # between the prongs (>= 2 x (engagement + gap))
+  prong_top: 19.0           # z of the prong roots (slit and gap tops) inside the post
+  slot_len: 2.4             # plinth above the catch ledge: ledge at z 2.6 (on the 0.2 layer grid)
+  catch_gap: 0.2            # hook catch face 0.2 under the ledge (one layer): z_catch 2.4
+  hook_land: 0.5            # >= one line
+  hook_lead: 30             # lead-in ramp angle from the insertion axis
+  post_r: 1.0               # profile corner radius (vertical edges in print)
+  # ---- base, pillar, axis
+  axis_h: 25.0
+  base_h: 5.0
+  base_margin: 3.0
+  base_front: 14.0          # plinth strip in front of the frame (carries '114')
+  base_back: 3.0
+  base_r: 5.0
+  frame_gap: 1.0            # frame back face to pillar
+  pillar_w: 12.0
+  pillar_t: 6.0
+  seam_notch: 0.6           # sharp 60-deg V-notch (vertical in print) so aligned seams land off the snap/fillet roots
+  screen_t: 2.0             # plate on the pillar front, hidden behind the frame bars: hides the crank through the window
+  shaft_corner_r: 0.0       # 0.4 tried: the fillet met the shoulder fillet in a sliver (CalculiX nonpositive jacobian)
+  boss_r: 5.0
+  label_h: 8.0              # cap height of '114'
+  label_proud: 1.2
+  # ---- shaft, crank (behind the pillar), cap (front hub)
+  shaft_r: 3.75
+  shaft_zf: 2.6
+  hub_r: 4.2
+  hub_l: 1.0
+  crank_r: 14.0             # knob orbit (18 mm) stays inside the frame's height: hidden from the front
+  crank_t: 4.0
+  root_r: 1.0               # concave fillets at the shaft/hub and hub/arm roots
+  arm_h: 3.4
+  knob_r: 4.0
+  knob_l: 11.0
+  cap_r: 6.0
+  snap_e: 1.0               # engagement of every snap (CLAUDE.md: >= 1 mm for a felt click)
+  shaft_slit: 1.4           # slit beside the flexing shaft prong (>= engagement + 0.1)
+  shaft_prong: 1.8          # flexing prong root thickness; tapers to shaft_prong_tip at the barb
+  shaft_prong_tip: 0.9      # forge flex L11 t1.8 taper 0.5: util 0.75, 5.8 N
+  shaft_snap_L: 11.0        # slit root (boss face, zero-moment end of the bearing) to the barb catch
+  barb_land: 0.6            # >= one line; cap 7.6, counterbore 2.0 (0.2 grid)
+  cap_cb_clear: 0.4         # counterbore radius over the barb corner; the cut shaft end shows here
+  crank_deg: 90              # motion parameter (pinion = crank angle, CCW from the front)
+
+printer:
+  machine: "Bambu Lab X1 Carbon 0.4 nozzle"
+  process: "0.20mm Standard @BBL X1C"
+  bed_type: "Textured PEI Plate"
+  overrides:
+    wall_loops: 3
+    seam_position: back   # seams to each part's rear: post backs (snap roots were taking the aligned seam), crank knob end, pinion plain arc

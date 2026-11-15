@@ -1,0 +1,21 @@
+# Printability rule thresholds. Values tied to the slicer are read from the flattened
+# Bambu presets at run time (support angle, line width, bed size); the rest are here.
+# kind: verified = geometric fact or slicer output; heuristic = rule of thumb.
+min_wall_fail_lines: 1.0       # walls thinner than 1 extrusion line cannot print
+min_wall_warn_lines: 2.0       # under 2 lines (~0.84 mm) prints weak and patchy
+bridge_max_mm: 12.0            # unsupported flat spans <= this are treated as bridges (heuristic)
+cosmetic_overhang_deg: 45      # slopes between the support angle and this get a surface-quality warning
+tiny_island_mm2: 1.5           # cross-sections smaller than this tend to snap off or blob
+min_bed_contact_mm2: 60        # under this, adhesion is risky; consider brim/mouse ears
+tip_ratio_warn: 5.0            # height / sqrt(first-layer area): tall + narrow parts wobble
+thickness_samples: 4000      # surface samples for the wall-thickness ray test
+# Rounded edges meeting the plate (fillets, spheres, domes) curl and scar: the curve goes
+# horizontal right at the bed. User rule: "avoid rounded edges coming off the build plate."
+# Flag downward faces shallower than this slope within bed_edge_zone_mm above the plate.
+bed_edge_max_slope_deg: 80      # physical test (snapbox): 45° chamfers at the plate curled. Walls must meet the plate ~vertically
+bed_edge_zone_mm: 2.0
+up_curve_warn_mm2: 80           # curved up-facing area (domes, big top rounds) that triggers a warning...
+up_curve_warn_frac: 0.08        # ...when it's also this fraction of the up-facing area
+fuse_gap_layers: 3              # vertical gaps under ceilings thinner than this many layers fuse (automaton review)
+slender_area_mm2: 10.0        # cross-sections smaller than this (~Ø3.5) count as slender
+slender_height_mm: 6.0        # ...and persisting this tall is a wobbly tower

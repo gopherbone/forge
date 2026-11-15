@@ -1,0 +1,173 @@
+# Crank Automaton (frogs): design spec. The human approves this at the `spec` gate.
+title: "Frog Automaton: A, Fly Catcher"
+summary: >
+  A palm-sized, crank-driven frog automaton in PETG for an adult's desk. Turn a side crank and a
+  camshaft inside a small base animates frog characters. Playful and toy-like: chunky rounded forms,
+  big eyes, lily-pad motifs. Assembles by hand with no glue or tools, and comes apart again.
+
+requirements:
+  - id: R1
+    text: "Fits in a palm: assembled footprint ≤ 80 × 60 mm, height ≤ 90 mm (crank handle included)"
+    verify: "check (part bounding boxes) + human"
+  - id: R2
+    text: "One crank turn gives visible, characterful motion: each moving feature travels ≥ 6 mm or ≥ 20°"
+    verify: "fit:sweep + human"
+  - id: R3
+    text: "No collisions between any parts at any crank angle (checked every 15° over a full turn)"
+    verify: "fit:sweep"
+  - id: R4
+    text: "The camshaft turns freely in its bearing holes (loose fit, per-side gap from fits.yaml)"
+    verify: fit
+  - id: R5
+    text: "Followers slide or pivot without binding (sliding fit in their guides)"
+    verify: "fit + human"
+  - id: R6
+    text: "Cams and crank lock onto the shaft without glue (keyed or D-flat, snug fit) and can be pulled off by hand"
+    verify: "fit + human"
+  - id: R7
+    text: "Crank handle and shaft survive a 10 N push at the knob, with safety factor ≥ 2 in the print orientation"
+    verify: "sim:crank_push"
+  - id: R8
+    text: "Any snap or flex retention feature stays under the repeated-use strain allowance"
+    verify: "sim:<retention case>"
+  - id: R9
+    text: "Every part prints support-free on the X1C in PETG. Total print time ≤ 3 h, all on one plate if possible"
+    verify: slice
+  - id: R10
+    text: "Toy-like look: rounded chunky forms, no sharp edges against fingers, frog character reads at a glance"
+    verify: human
+
+loads:
+  - "Cranking: a finger pushes the crank knob sideways with ~10 N (a firm twirl, or a fumble)"
+  - "Pulling the crank off: ~5 N axial pull at the knob should not pull the shaft out unless intended"
+  - "Cam followers: gravity + light friction only (< 1 N)"
+
+material: PETG
+cosmetic: >
+  Frog tops and the outside of the base are show faces. The base sides can carry a pond/lily-pad relief.
+  Inside the base and under the frogs are hidden.
+constraints:
+  - "Palm-sized: see R1"
+  - "Support-free unless a reason is logged in the journal"
+  - "Smallest feature ≥ 1.2 mm (adult toy, but it should survive a drop onto a desk)"
+  - "Clearances come from forge/data/fits.yaml (uncalibrated until the coupon is printed)"
+
+open_questions:
+  - "Concept: A 'Fly catcher' (one frog, jaw opens, tongue flicks out at a fly) or B 'Leapfrog pond' (three frogs hop in a wave)? Two concepts will be shown."
+  - "Colours: single colour, or a filament swap / AMS for green frogs on a contrasting base?"
+  - "Crank on the right side (default) or the left?"
+
+params:
+  # ---- base (pond box: ring, open top and bottom)
+  base_w: 62          # along the shaft (X); 62 + crank keeps the footprint under 80
+  base_d: 50
+  base_h: 30
+  wall: 2.4
+  corner_r: 6
+  top_fillet: 1.2
+  edge_chamfer: 0.5   # bed-side edges (elephant foot)
+  relief: 0.8         # lily-pad relief height
+  pad_squash: 0.42    # side-face lily pads: ellipse height / width
+  pad_notch_deg: 14   # half-angle of the side pads' notch
+  pad_chamfer: 0.3
+  pads_front: [[-15, 9, 8.0], [5, 6, 5.5], [19, 12, 4.2]]   # [x, z, r] on the -Y face
+  pads_back: [[-11, 8, 7.0], [14, 11, 4.5]]                 # [x, z, r] on the +Y face (x mirrored)
+  small_chamfer: 0.4  # bed-side breaks on small parts
+  plate_t: 2.4        # deck plate (part of the body) resting on the ledge
+  ledge_w: 1.6
+  ledge_lip: 1.0
+  ledge_key: 0.5      # ledge block keyed into the wall so the 45-deg face meets it cleanly
+  boss_r: 5
+  boss_l: 3
+  # ---- shaft, crank
+  shaft_d: 5.0
+  shaft_y: 9          # shaft sits behind centre so the tongue bore lands under the mouth
+  shaft_z: 14
+  dflat: 1.0          # D-flat depth (0.2 d)
+  crank_r: 9.5
+  crank_gap: 0.5
+  arm_t: 4
+  arm_fillet: 1.0
+  knob_d: 7
+  knob_l: 9
+  knob_drop: 2.5      # arm/knob centre above the D-flat plane (flat edge stays >= 45 deg)
+  # ---- cam and tongue follower
+  cam_e: 4            # eccentricity: follower travel = 2e
+  cam_wall: 1.8
+  cam_t: 6
+  cam_end_gap: 0.3
+  hub_inset: 0.4
+  cam_phase: 0        # crank angle at which the mouth is fully open
+  contact_gap: 0.1    # running gap cam/foot and tongue/palate at every angle
+  rod_beta: 28        # follower axis tilt from vertical, towards the fly
+  rod_w: 11           # blade width (>= 2e + 2 so the foot covers the contact path)
+  rod_t: 4
+  neck_dy: -3
+  neck_dz: 0.5
+  tip_dy: -8
+  tip_dz: 3
+  tip_r: 2
+  tongue_fillet: 1.0
+  groove_gap: 0.4
+  # ---- frog
+  mouth_h: 13         # mouth floor above the deck
+  mouth_gap: 0.4      # palate above the mouth floor at head angle 0
+  rest_deg: 1.0       # head angle when closed
+  hinge_y: 10
+  hinge_c: 3.5        # hinge axis above the palate
+  rear_clear_deg: 6
+  tab_t: 6
+  tab_r: 3.4
+  tab_root: 1.0       # tab sinks this far into the body
+  slot_gap: 0.4
+  slot_back: 3
+  pin_d: 3.5
+  pin_flat: 0.6
+  pin_l: 25
+  pin_chamfer: 0.3
+  tymp_r: 4
+  body_rx: 17
+  body_ry: 19
+  body_rz: 22
+  body_y: 0
+  haunch_rx: 8
+  haunch_ry: 10
+  haunch_rz: 10
+  haunch_x: 12
+  haunch_y: 8
+  foot_rx: 4.5
+  foot_ry: 5
+  foot_rz: 3
+  foot_x: 9
+  foot_y: -16
+  head_rx: 18
+  head_ry: 16.5
+  head_rz: 14
+  head_y: 0
+  head_lip_chamfer: 1.0  # bed edge of the head: 45-degree chamfer reads as a soft lip
+  lip_fillet: 0.8
+  eye_r: 5.5
+  eye_x: 8.5
+  eye_y: 9
+  eye_lift: 2.5
+  pupil_r: 2.4
+  pupil_depth: 1.2
+  nostril_x: 3
+  nostril_r: 0.9
+  pad_r: 21
+  pad_y: 0
+  deck_pad_notch_deg: 40
+  notch_margin: 0.6   # lip notch runs this far past the chin
+  fly_y: -20.5
+  fly_dz: 7           # fly height above the mouth floor
+  fly_r: 2.2
+  wing_t: 1.4
+  stalk_d: 2.4
+  crank_deg: 0        # crank angle; the motion sweep overrides this to check every pose
+
+printer:
+  machine: "Bambu Lab X1 Carbon 0.4 nozzle"
+  process: "0.20mm Standard @BBL X1C"
+  bed_type: "Textured PEI Plate"
+  overrides:
+    wall_loops: 3

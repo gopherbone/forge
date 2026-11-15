@@ -1,0 +1,9 @@
+# forge-wide process overrides applied on top of the Bambu process preset, under a project's
+# own spec.yaml `printer.overrides` (the project wins). slicer.assess checks every one of these
+# appears in the G-code header, so a silently ignored setting fails the slice stage.
+overrides:
+  # User request: "use a better infill". The preset default is 15% grid. Grid crosses itself
+  # every layer, so the nozzle drags through fresh PETG (blobs, strings, noise), and it is weak
+  # off-axis. Gyroid never self-intersects, is close to isotropic, and suits PETG.
+  sparse_infill_pattern: gyroid
+  sparse_infill_density: "25%"

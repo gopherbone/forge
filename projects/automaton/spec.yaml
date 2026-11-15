@@ -1,0 +1,252 @@
+# Crank Automaton (frogs): design spec. The human approves this at the `spec` gate.
+title: "Frog Automaton: Leapfrog Pond + Fly Catcher"
+summary: >
+  A palm-sized, crank-driven frog automaton in PETG for an adult's desk. Turn a side crank and a
+  camshaft inside a small base animates frog characters. Playful and toy-like: flat-topped extruded silhouettes,
+  big eyes, lily-pad motifs. Assembles by hand with no glue or tools, and comes apart again.
+
+requirements:
+  - id: R1
+    text: "Fits in a palm: assembled footprint ≤ 80 × 60 mm, height ≤ 90 mm (crank handle included)"
+    verify: "check (part bounding boxes) + human"
+  - id: R2
+    text: "One crank turn gives visible, characterful motion: each moving feature travels ≥ 6 mm or ≥ 20°"
+    verify: "fit:sweep + human"
+  - id: R3
+    text: "No collisions between any parts at any crank angle (checked every 15° over a full turn)"
+    verify: "fit:sweep"
+  - id: R4
+    text: "The camshaft turns freely in its bearing holes (loose fit, per-side gap from fits.yaml)"
+    verify: fit
+  - id: R5
+    text: "Followers slide or pivot without binding (sliding fit in their guides)"
+    verify: "fit + human"
+  - id: R6
+    text: "Cams and crank lock onto the shaft without glue (keyed or D-flat, snug fit) and can be pulled off by hand"
+    verify: "fit + human"
+  - id: R7
+    text: "Crank handle and shaft survive a 10 N push at the knob, with safety factor ≥ 2 in the print orientation"
+    verify: "sim:crank_push"
+  - id: R8
+    text: "Any snap or flex retention feature stays under the repeated-use strain allowance"
+    verify: "sim:<retention case>"
+  - id: R9
+    text: "Every part prints support-free on the X1C in PETG. Total print time ≤ 3 h, all on one plate if possible"
+    verify: slice
+  - id: R10
+    text: "Toy-like look: flat-topped extruded silhouettes with one small edge break, no sharp edges against fingers, frog character reads at a glance"
+    verify: human
+
+loads:
+  - "Cranking: a finger pushes the crank knob sideways with ~10 N (a firm twirl, or a fumble)"
+  - "Pulling the crank off: ~5 N axial pull at the knob should not pull the shaft out unless intended"
+  - "Cam followers: gravity + light friction only (< 1 N)"
+
+material: PETG
+cosmetic: >
+  Frog tops and the outside of the base are show faces. The base sides can carry a pond/lily-pad relief.
+  Inside the base and under the frogs are hidden.
+constraints:
+  - "Palm-sized: see R1"
+  - "Support-free unless a reason is logged in the journal"
+  - "Smallest feature ≥ 1.2 mm (adult toy, but it should survive a drop onto a desk)"
+  - "Clearances come from forge/data/fits.yaml (uncalibrated until the coupon is printed)"
+
+open_questions:
+  - "Fly: fixed on a sturdy stalk, or does it bob on its own cam and dodge just as the tongue arrives?"
+  - "Colours: single colour, or a filament swap / AMS for green frogs on a contrasting base?"
+  - "Crank on the right side (default) or the left?"
+
+params:
+  # ---- ring base (printed upright: open top and bottom, so no ceilings)
+  base_w: 58
+  base_d: 52
+  wall: 3.0
+  corner_r: 6
+  rim_h: 1.6            # ring stands this far above the deck top (pond edge)
+  rim_fillet: 0         # crisp flat rim (a break here counts as an up-facing curve)
+  rim_lead: 1.2         # 45-deg lead-in on the rim inner edge (cams the deck snap lips in)
+  rib_t: 2.2            # bearing ribs inside the end walls
+  rib_w: 12
+  rib_above: 6          # rib top above the shaft axis
+  ledge_w: 1.4          # 45-deg ledge the deck rests on
+  # ---- deck (printed flat, top up: raised lily pads)
+  deck_t: 3.0
+  deck_gap: 0.2
+  pad_h: 2.0
+  pad_rx: 6.8
+  pad_ry: 9.0
+  pad_notch_deg: 20
+  mid_pad_r: 11.5
+  fly_pad_r: 4.0
+  fing_l: 20
+  fing_t: 3.7
+  fing_slot: 1.4
+  fing_key_r: 0.8
+  fing_root_x: 3
+  lip_p: 1.2            # lip protrusion past the deck edge; engagement = lip_p - deck_gap = 1.0
+  lip_len: 3.0
+  lip_h: 2.0
+  lip_clear: 0.2
+  # ---- crankshaft (lying on its bottom flat; triple-flat section)
+  shaft_r: 3.25
+  shaft_zf: 2.2          # flats 1.05 deep; the corners keep short r 3.25 arcs (no sharp longitudinal corners)
+  shaft_y: 4
+  shaft_z: 17.6
+  hub_gap: 0.8
+  shoulder_r: 0.7
+  crank_r: 9.5
+  crank_t: 4
+  knob_l: 11
+  arm_edge_r: 0.8
+  crank_vfillet: 1.0
+  # ---- retaining clip (lily pad C-ring on a keyed neck at the -X end)
+  clip_gap: 0.3
+  clip_t: 5.0
+  tooth_t: 2.4
+  clip_ri: 6.4
+  clip_ro: 7.9
+  clip_taper: 0.35
+  jaw_w: 2.4
+  jaw_lip: 0.85
+  jaw_lip_h: 0.8
+  clip_root_r: 1.2
+  neck_a: 1.4
+  neck_top: 0.6
+  clip_engage: 1.0
+  tooth_land: 0.8
+  # ---- cams
+  cam_e: 3.5
+  cam_r: 8.5
+  cam_w: 6
+  fly_cam_w: 4.2         # = fly_t: the fly plate width on the tongue cam
+  cam_hub_r: 4.95
+  cam_end_gap: 0.4
+  cam_follow_gap: 0.1
+  cam_cone_extra: 0.2
+  # ---- hopper followers and frogs
+  frog_pitch: 20
+  rod_a: 4
+  rod_b: 5
+  rod_corner_r: 0.6
+  rod_tip_chamfer: 0.4
+  rod_root_r: 0.8
+  foot_w: 7
+  foot_d: 12
+  foot_t: 2.0
+  foot_corner_r: 2
+  foot_top_r: 0.6
+  stop_gap: 1.1          # puts the deck underside on the 0.2 mm layer grid (32.8)
+  belly_gap: 1.0
+  socket_depth: 6
+  rib_r: 0.4
+  rib_int: 0.2          # crush-rib interference
+  # ---- tongue follower (inclined) and middle frog
+  tongue_beta: 20
+  tongue_t: 4
+  tongue_w: 4.5
+  tongue_foot_w: 9
+  sleeve_len: 2.8
+  neck_dy: -2
+  neck_dz: 0.0
+  tip_dy: -5.5
+  tip_dz: 0.3
+  tip_r: 1.5
+  groove_gap: 0.4
+  notch_margin: 0.6
+  body_dy: -7
+  body_rx: 9.5
+  body_ry: 10.5
+  body_rz: 11
+  mouth_h: 15            # tall enough for the body shell's 12 mm snap finger along the tongue axis
+  mouth_gap: 0.4
+  rest_deg: 1.0
+  hinge_dy: 7
+  hinge_c: 2.6
+  tab_t: 4.4
+  tab_r: 4.6
+  tab_root: 2.4
+  slot_gap: 0.4
+  slot_back: 3
+  pin_r: 2.2
+  pin_zf: 1.556          # rounded square (= r / sqrt2)
+  pin_l: 20
+  pin_chamfer: 0.3
+  head_rx: 10
+  head_ry: 9.2
+  head_dy: -0.5
+  eye_r: 3.4
+  eye_x: 4.8
+  pupil_r: 1.4
+  floor_pocket_d: 1.0
+  # ---- fly (own cam, dodges up just after the tongue peaks)
+  fly_rod_x: 5.5
+  fly_rod_dy: -21
+  fly_x: 1.6
+  fly_dy: -22
+  fly_dz: 4.5           # fly centre above the mouth floor at its lowest
+  fly_ry: 2.8
+  fly_rz: 1.9
+  fly_plate_t: 2.0
+  # ---- simplified 2.5D frogs (front silhouettes, printed on their backs)
+  frog_w: 14.4
+  frog_h: 12.5
+  frog_d: 14
+  frog_corner_r: 4
+  frog_eye_x: 3.8
+  frog_eye_r: 3.2
+  frog_eye_dz: 0.6
+  frog_foot_r: 2.2
+  frog_fillet: 0.8         # the one edge-break size used everywhere
+  smile_r: 4.0
+  smile_z: 9.0
+  smile_w: 1.2
+  groove_d: 1.0
+  haunch_r: 4.5
+  fly_t: 4.2
+  stalk_w: 2.4
+  tab_x: 12
+  knob_w: 6.6
+  knob_h: 4.0           # arm and knob tops above the shaft axis
+  arm_back: 4.0
+  body_corner_r: 3
+  haunch_w: 4
+  haunch_l: 9
+  haunch_h: 4
+  haunch_dy: 3
+  head_h: 7
+  eye_h: 3.2
+  eye_y: -6.5
+  head_break: 0.8
+  head_corner_r: 1.0
+  fsnap_l: 12.5         # frog snap finger: root height above the belly
+  fsnap_t: 1.3           # finger root thickness (tapers to 0.75 x at the tip)
+  fsnap_taper: 0.75
+  fsnap_cav: 1.7          # outer cavity: room for the full deflection (was 1.0, the finger hit the wall)
+  fsnap_gap: 0.6          # finger-to-skin gap: 3 layers
+  hook_w: 3.6
+  notch_cheek: 0.6
+  eye_taper_start: 2.2
+  fsnap_skin: 1.6       # front skin hiding the finger
+  hook_z0: 0.3
+  hook_h: 1.6
+  sleeve_wall: 2.4
+  body_sock_d: 8
+  body_fsnap_l: 12
+  body_fsnap_t: 1.0
+  body_hook_z0: 1.2
+  body_cav_drop: 2.4
+  head_rz: 7.5
+  eye_dz: 0.0
+  fly_plate: 2.0
+  relief_w: 0.25          # stepped elephant-foot relief on holes through the first layer
+  relief_h: 0.4           # 2 layers
+  crank_deg: 90
+
+printer:
+  machine: "Bambu Lab X1 Carbon 0.4 nozzle"
+  process: "0.20mm Standard @BBL X1C"
+  bed_type: "Textured PEI Plate"
+  overrides:
+    wall_loops: 3
+    seam_position: back
