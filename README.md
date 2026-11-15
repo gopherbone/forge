@@ -224,3 +224,6 @@ Fit clearances ship as uncalibrated defaults. Generate the coupon with `forge co
 - **FEA assumptions:** stiffness is treated as isotropic, parts as solid (no infill), and creep, fatigue and contact are ignored.
 - **Physics coverage:** MuJoCo isn't valid for gear and rack trains, and says so.
 - **Human judgement:** fit *feel* and aesthetics stay with you. That's what the print gate and the test prints are for.
+
+## License
+[MIT](LICENSE). The 1868 engravings in `projects/*/reference/` are from Henry T. Brown's *507 Mechanical Movements* and are in the public domain.
