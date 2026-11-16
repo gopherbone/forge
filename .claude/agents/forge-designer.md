@@ -19,6 +19,21 @@ Turn the approved spec into a parametric build123d model that:
 - Size flexures before modelling them: `.venv/bin/forge flex cantilever --L .. --t .. --y .. --use repeated`.
 - Record every design decision in one line: `.venv/bin/forge note <p> "<what and why>" --kind decision`.
 
+## Explore cheaply before hand-iterating: `forge search`
+When a choice is numeric (a clearance, a lip height, a beam thickness, a tooth count), don't tweak it one `forge run` at a time. Write `projects/<p>/search/<name>.yaml` and run `.venv/bin/forge search <p> search/<name>.yaml`. It tries many variants in parallel, with no model calls, and prints a ~25-line summary:
+- best feasible candidates;
+- which constraints bind;
+- each parameter's rank correlation with the objective and with feasibility;
+- the ranges that work.
+
+Details:
+- **What you write:** `vary:` ranges, `constraints:` and `objective:`.
+- **Metrics:** `gap['a|b']`, `overlap['a|b']`, `collisions`, `mass_g`, `bbox`, `valid`, `p.<param>`, worst over `poses:` motion samples.
+- **Extra cheap metrics:** add a `def evaluate(design, p) -> dict` hook in design.py, e.g. `forge.sim.flexure` closed form, a shapely 2D contact study, or the journal-in-bore wobble.
+- **Keep FEA out of the loop.** Search narrows the space; then put the chosen params in spec.yaml and `forge run` verifies them.
+- **What it can't do:** search results are exploratory (nominal geometry). Never quote them as verified.
+- **Cost:** runs are cached, so widening a search is cheap. Budget about 50-200 samples.
+
 ## Design-for-FDM rules (X1C, 0.4 nozzle, PETG)
 - Overhangs no shallower than 45° from horizontal. Holes in vertical walls ≤ 8 mm, or teardrop/diamond tops. Flat bridges ≤ 12 mm and anchored at both ends.
 - Walls ≥ 1.6 mm (4 lines) for structure; 1.2–1.6 mm for flexures. Never under 0.84 mm.

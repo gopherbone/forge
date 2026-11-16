@@ -330,6 +330,15 @@ def cmd_flex(a):
     return 1 if r["util"] > 1 else 0
 
 
+def cmd_search(a):
+    from . import search
+    banner(f"search {a.project}")
+    s = search.run(a.project, a.spec, budget=a.budget, workers=a.workers, seed=a.seed,
+                   log=lambda m: con.print(f"[dim]{m}[/]"))
+    print(search.format_summary(s))
+    return 0 if s["best_is_feasible"] else 1
+
+
 def cmd_coupon(a):
     from . import coupon
     p = coupon.create()
@@ -408,6 +417,13 @@ def main(argv=None):
     p = sub.add_parser("studio", help="live dashboard: watch agents build and verify")
     p.add_argument("--port", type=int, default=8765)
     p.set_defaults(fn=cmd_studio)
+    p = sub.add_parser("search", help="cheap parallel parameter search (exploratory; no tokens)")
+    p.add_argument("project")
+    p.add_argument("spec", help="search spec YAML (vary/constraints/objective), e.g. search/fit.yaml")
+    p.add_argument("--budget", type=int)
+    p.add_argument("--workers", type=int)
+    p.add_argument("--seed", type=int, default=0)
+    p.set_defaults(fn=cmd_search)
     p = sub.add_parser("flex", help="closed-form flexure sizing")
     p.add_argument("kind", choices=["cantilever", "hinge"])
     p.add_argument("--L", type=float, required=True, help="length mm")

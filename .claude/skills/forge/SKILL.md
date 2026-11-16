@@ -35,7 +35,7 @@ Arguments: `$ARGUMENTS` (project name, then an optional brief). If no project na
 - Mechanisms: declare `Motion`. Mark driving pairs `Fit(..., drives=True)` (the sweep proves they engage). Give every Fit a `retention`.
 - Physics verdicts are only claimed for gravity-returned cam followers (validated). For other mechanisms, live mode in studio is for exploring, not evidence.
 Repeat until no FAIL remains and every WARN is either fixed or explained in the journal:
-1. **forge-designer** implements and refines (params, fillets, finish, fits, LoadCases from the spec loads).
+1. **forge-designer** implements and refines (params, fillets, finish, fits, LoadCases from the spec loads). For numeric trade-offs it runs `forge search` (parallel, token-free parameter exploration; exploratory evidence only) before hand-tuning.
 2. `.venv/bin/forge run <p>` (full: orient → check → fit → sim with convergence → strength-aware orient → slice → render → report). Use `--fast` while iterating; do the final run in full.
 3. On EVERY designer hand-back, in parallel: **forge-print-engineer** (printability, orientation, slice) and **forge-sim-engineer** (load cases, trust checklist). Give each the project name and the current failing checks. If there's a reference, have **forge-critic** compare hero.png against it side by side.
 4. Merge their proposals, resolve conflicts (strength vs supports vs looks: the strength-aware orient table is the tie-breaker data), and send the designer one consolidated change list.

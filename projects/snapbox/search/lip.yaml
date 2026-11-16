@@ -1,0 +1,13 @@
+# Example: how far can the snap lip protrude while the lid still has its sliding clearance?
+vary:
+  lip_u: [0.4, 1.6]
+  skirt_t: [1.0, 2.0]
+  skirt_h: {int: [12, 22]}
+constraints:
+  - valid
+  - gap['base|lid'] >= 0.2
+  - collisions == 0
+  - mass_g <= 36
+objective: maximize p.lip_u
+budget: 48
+workers: 6
